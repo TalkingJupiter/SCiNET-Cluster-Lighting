@@ -1,0 +1,62 @@
+defaults:
+  u_count: 42
+
+controllers:
+  A: &A 192.168.50.201
+  B: &B 192.168.50.202
+  C: &C 192.168.50.203
+  D: &D 192.168.50.204
+
+racks:
+  A1: {host: *A, start: 1,    end: 301}
+  A2: {host: *A, start: 302,  end: 602}
+  B1: {host: *B, start: 1,    end: 301}
+  B2: {host: *B, start: 302,  end: 602}
+  C1: {host: *C, start: 1,    end: 301}
+  C2: {host: *C, start: 302,  end: 602}
+  D1: {host: *D, start: 1,    end: 301}
+  D2: {host: *D, start: 302,  end: 602}
+
+u_s:
+    1 : {start:   1, end:   4, mirrored_start: 298, mirrored_end: 301}   #3
+    2 : {start:   4, end:   7, mirrored_start: 295, mirrored_end: 298}   #3
+    3 : {start:   7, end:   9, mirrored_start: 293, mirrored_end: 295}   #2
+    4 : {start:   9, end:  12, mirrored_start: 290, mirrored_end: 293}   #3
+    5 : {start:  12, end:  15, mirrored_start: 287, mirrored_end: 290}   #3
+    6 : {start:  15, end:  17, mirrored_start: 285, mirrored_end: 287}   #2
+    7 : {start:  17, end:  20, mirrored_start: 282, mirrored_end: 285}   #3
+    8 : {start:  20, end:  23, mirrored_start: 279, mirrored_end: 282}   #3
+    9 : {start:  23, end:  25, mirrored_start: 277, mirrored_end: 279}   #2
+    10: {start:  25, end:  28, mirrored_start: 274, mirrored_end: 277}   #3
+    11: {start:  28, end:  31, mirrored_start: 271, mirrored_end: 274}   #3
+    12: {start:  31, end:  33, mirrored_start: 269, mirrored_end: 271}   #2
+    13: {start:  33, end:  36, mirrored_start: 266, mirrored_end: 269}   #3
+    14: {start:  36, end:  39, mirrored_start: 263, mirrored_end: 266}   #3
+    15: {start:  39, end:  41, mirrored_start: 261, mirrored_end: 263}   #2
+    16: {start:  41, end:  44, mirrored_start: 258, mirrored_end: 261}   #3
+    17: {start:  44, end:  47, mirrored_start: 255, mirrored_end: 258}   #3
+    18: {start:  47, end:  49, mirrored_start: 253, mirrored_end: 255}   #2
+    19: {start:  49, end:  52, mirrored_start: 250, mirrored_end: 253}   #3
+    20: {start:  52, end:  55, mirrored_start: 247, mirrored_end: 250}   #3
+    21: {start:  55, end:  57, mirrored_start: 245, mirrored_end: 247}   #2
+    22: {start:  57, end:  60, mirrored_start: 242, mirrored_end: 245}   #3
+    23: {start:  60, end:  63, mirrored_start: 239, mirrored_end: 242}   #3
+    24: {start:  63, end:  65, mirrored_start: 237, mirrored_end: 239}   #2
+    25: {start:  65, end:  68, mirrored_start: 234, mirrored_end: 237}   #3
+    26: {start:  68, end:  71, mirrored_start: 231, mirrored_end: 234}   #3
+    27: {start:  71, end:  73, mirrored_start: 229, mirrored_end: 231}   #2
+    28: {start:  73, end:  76, mirrored_start: 226, mirrored_end: 229}   #3
+    29: {start:  76, end:  79, mirrored_start: 223, mirrored_end: 226}   #3
+    30: {start:  79, end:  81, mirrored_start: 221, mirrored_end: 223}   #2
+    31: {start:  81, end:  84, mirrored_start: 218, mirrored_end: 221}   #3
+    32: {start:  84, end:  87, mirrored_start: 215, mirrored_end: 218}   #3
+    33: {start:  87, end:  89, mirrored_start: 213, mirrored_end: 215}   #2
+    34: {start:  89, end:  92, mirrored_start: 210, mirrored_end: 213}   #3
+    35: {start:  92, end:  95, mirrored_start: 207, mirrored_end: 210}   #3
+    36: {start:  95, end:  97, mirrored_start: 205, mirrored_end: 207}   #2
+    37: {start:  97, end: 100, mirrored_start: 202, mirrored_end: 205}   #3
+    38: {start: 100, end: 103, mirrored_start: 199, mirrored_end: 202}   #3
+    39: {start: 103, end: 105, mirrored_start: 197, mirrored_end: 199}   #2
+    40: {start: 105, end: 108, mirrored_start: 194, mirrored_end: 197}   #3
+    41: {start: 108, end: 111, mirrored_start: 191, mirrored_end: 194}   #3
+    42: {start: 111, end: 113, mirrored_start: 189, mirrored_end: 191}   #2
