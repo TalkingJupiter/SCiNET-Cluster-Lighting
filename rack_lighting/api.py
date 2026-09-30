@@ -1,6 +1,6 @@
 """HTTP API for the front end.
 
-    uvicorn api:create_app --factory --host 0.0.0.0 --port 8000
+    uvicorn rack_lighting.api:create_app --factory --host 0.0.0.0 --port 8000
 
 The front end can only ask for a highlight. It cannot put a rack back to
 idle: every highlight returns to the chase on its own after
@@ -16,8 +16,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-import config_loader
-from rack_lights import RackLights
+from . import config_loader
+from .rack_lights import RackLights
 
 log = logging.getLogger(__name__)
 

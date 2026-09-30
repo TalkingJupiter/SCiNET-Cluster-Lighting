@@ -1,12 +1,8 @@
-import os
-import sys
 import textwrap
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import config_loader  # noqa: E402
+from rack_lighting import config_loader
 
 # Same positions as real WLED: Solid = 0, Breathe = 2, Chase = 28.
 EFFECTS = ["Solid", "Blink", "Breathe"] + [f"FX{i}" for i in range(3, 28)] + ["Chase"]

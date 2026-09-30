@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from api import create_app
-from rack_lights import RackLights
+from rack_lighting.api import create_app
+from rack_lighting.rack_lights import RackLights
 from tests.conftest import FakeClient, FakeTimers
 
 

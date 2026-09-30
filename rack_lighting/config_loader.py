@@ -4,7 +4,11 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.ini")
+# <repo>/config/config.ini; set RACK_LIGHTING_CONFIG to use another file.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CONFIG_PATH = os.environ.get(
+    "RACK_LIGHTING_CONFIG", os.path.join(REPO_ROOT, "config", "config.ini")
+)
 MODES = ("chase", "meter")
 
 

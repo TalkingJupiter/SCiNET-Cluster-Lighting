@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-import config_loader
+from rack_lighting import config_loader
 from tests.conftest import BASE_INI
 
 

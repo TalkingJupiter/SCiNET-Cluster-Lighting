@@ -1,6 +1,6 @@
 import pytest
 
-from rack_lights import RackLights, controller_state
+from rack_lighting.rack_lights import RackLights, controller_state
 from tests.conftest import FakeClient, FakeTimers
 
 

@@ -16,9 +16,9 @@ segments from 0 with no gaps, and deletes whatever is left above that.
 import logging
 import threading
 
-from modes.animate import default_animation
-from modes.highlight import highlight_node, unit_groups
-from wled_client import WLEDClient
+from .clients.wled_client import WLEDClient
+from .modes.animate import default_animation
+from .modes.highlight import highlight_node, unit_groups
 
 log = logging.getLogger(__name__)
 

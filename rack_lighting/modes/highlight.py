@@ -1,7 +1,7 @@
 """Highlight mode: breathe the requested U's; the rest of the rack is dark."""
 
-from layout import run_range, to_strip, unit_runs
-from modes.animate import segment
+from ..layout import run_range, to_strip, unit_runs
+from .animate import segment
 
 
 def unit_groups(cfg, rack, units):

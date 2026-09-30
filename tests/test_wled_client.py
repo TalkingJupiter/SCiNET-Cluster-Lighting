@@ -6,9 +6,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from rack_lights import RackLights
+from rack_lighting.rack_lights import RackLights
 from tests.conftest import EFFECTS, FakeTimers
-from wled_client import WLEDClient
+from rack_lighting.clients.wled_client import WLEDClient
 
 
 class FakeWLED(BaseHTTPRequestHandler):
