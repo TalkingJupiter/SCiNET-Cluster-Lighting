@@ -1,12 +1,8 @@
-import os
-import sys
 import textwrap
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import config_loader  # noqa: E402
+from rack_lighting import config_loader
 
 # Same positions as real WLED: Solid = 0, Breathe = 2, Chase = 28.
 EFFECTS = ["Solid", "Blink", "Breathe"] + [f"FX{i}" for i in range(3, 28)] + ["Chase"]
@@ -54,6 +50,7 @@ effect = Breathe
 color = 255, 255, 255
 brightness = 150
 speed = 200
+hold-seconds = 5
 
 [Led-config]
 low-energy-pixel-range = 0:65
@@ -108,3 +105,28 @@ def write_ini(tmp_path, monkeypatch):
 @pytest.fixture
 def cfg(write_ini):
     return write_ini()
+
+
+class FakeTimers:
+    """Stands in for thread_timer. Nothing fires until the test says so."""
+
+    def __init__(self):
+        self.pending = []           # [delay, fn, cancelled]
+
+    def __call__(self, delay, fn):
+        entry = [delay, fn, False]
+        self.pending.append(entry)
+
+        class Handle:
+            def cancel(self_):
+                entry[2] = True
+        return Handle()
+
+    def live(self):
+        return [e for e in self.pending if not e[2]]
+
+    def fire_all(self):
+        """Run every timer that hasn't been cancelled, as if time passed."""
+        due, self.pending = self.live(), []
+        for _, fn, _ in due:
+            fn()

@@ -4,7 +4,11 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.ini")
+# <repo>/config/config.ini; set RACK_LIGHTING_CONFIG to use another file.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CONFIG_PATH = os.environ.get(
+    "RACK_LIGHTING_CONFIG", os.path.join(REPO_ROOT, "config", "config.ini")
+)
 MODES = ("chase", "meter")
 
 
@@ -55,6 +59,7 @@ class Config:
     first_u_pixel: int
     idle: Style
     highlight: Style
+    highlight_hold_s: float     # a highlight returns to idle after this long
     min_kw: float
     max_kw: float
     energy_ranges: dict
@@ -153,6 +158,10 @@ def load(path=CONFIG_PATH):
                 if a.start < b.stop and b.start < a.stop:
                     raise ValueError(f"{a.name} and {b.name} overlap on controller {ip}")
 
+    highlight_hold_s = config["Highlight"].getfloat("hold-seconds", 5.0)
+    if highlight_hold_s <= 0:
+        raise ValueError("[Highlight] hold-seconds must be greater than 0")
+
     # NOTE: Do we need to keep the low values or can we do it via prev high value?
     energy_ranges = {
         level: _ints(config["Led-config"][f"{level}-energy-pixel-range"].replace(":", ","))
@@ -176,6 +185,7 @@ def load(path=CONFIG_PATH):
         first_u_pixel=first_u_pixel,
         idle=_style(config["Idle"]),
         highlight=_style(config["Highlight"]),
+        highlight_hold_s=highlight_hold_s,
         min_kw=config.getfloat("Energy", "min-kw"),
         max_kw=config.getfloat("Energy", "max-kw"),
         energy_ranges=energy_ranges,

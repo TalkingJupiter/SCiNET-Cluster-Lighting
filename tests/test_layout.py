@@ -1,7 +1,7 @@
 import pytest
 
-from layout import parse_units, run_range, to_strip, unit_range, unit_runs
-from config_loader import Side
+from rack_lighting.layout import parse_units, run_range, to_strip, unit_range, unit_runs
+from rack_lighting.config_loader import Side
 
 PATTERN = (3, 3, 2)
 

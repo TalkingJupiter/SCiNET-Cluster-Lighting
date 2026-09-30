@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-import config_loader
+from rack_lighting import config_loader
 from tests.conftest import BASE_INI
 
 
@@ -15,6 +15,12 @@ def test_loads(cfg):
     assert cfg.highlight.effect == "Breathe"
     assert cfg.highlight.speed == 200
     assert cfg.segments_per_rack == 8
+    assert cfg.highlight_hold_s == 5
+
+
+def test_hold_must_be_positive(write_ini):
+    with pytest.raises(ValueError, match="hold-seconds"):
+        write_ini(hold_seconds="0")
 
 
 def test_sides_belong_to_each_rack(cfg):

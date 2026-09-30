@@ -1,17 +1,17 @@
-"""Command-line entry point until the front-end API exists.
+"""Command-line tool for testing on hardware. The front end uses api.py.
 
-    python engine.py                  list racks
-    python engine.py Rack1 idle       chase on Rack1
-    python engine.py all idle         chase on every rack
-    python engine.py Rack1 1,2        highlight U1 and U2 on Rack1
-    python engine.py Rack1 5-8,12     ranges work too
+    python -m rack_lighting                 list racks
+    python -m rack_lighting Rack1 idle      chase on Rack1
+    python -m rack_lighting all idle        chase on every rack
+    python -m rack_lighting Rack1 1,2       highlight U1-U2, back to chase after hold-seconds
+    python -m rack_lighting Rack1 5-8,12    ranges work too
 """
 
 import argparse
 
-import config_loader
-from layout import parse_units
-from rack_lights import RackLights
+from . import config_loader
+from .layout import parse_units
+from .rack_lights import RackLights
 
 
 def main(argv=None):
@@ -37,6 +37,7 @@ def main(argv=None):
                 lights.idle(args.rack)
         else:
             lights.highlight(args.rack, parse_units(args.units))
+            print(f"[INFO] holding {cfg.highlight_hold_s:g}s, then back to chase")
     except (KeyError, ValueError) as exc:
         print(f"[ERROR] {exc}")
         return 2

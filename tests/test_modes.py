@@ -1,7 +1,7 @@
 import pytest
 
-from modes.animate import default_animation, effect_id
-from modes.highlight import highlight_node, unit_groups
+from rack_lighting.modes.animate import default_animation, effect_id
+from rack_lighting.modes.highlight import highlight_node, unit_groups
 from tests.conftest import BASE_INI, EFFECTS
 
 
