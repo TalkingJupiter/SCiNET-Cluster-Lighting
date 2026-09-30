@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import pytest
 
 from rack_lights import RackLights
-from tests.conftest import EFFECTS
+from tests.conftest import EFFECTS, FakeTimers
 from wled_client import WLEDClient
 
 
@@ -60,7 +60,7 @@ def test_set_state_posts_json(wled):
 
 
 def test_end_to_end_highlight(wled, cfg):
-    lights = RackLights(cfg, client_factory=lambda host: WLEDClient(wled))
+    lights = RackLights(cfg, client_factory=lambda host: WLEDClient(wled), schedule=FakeTimers())
     lights.highlight("Rack1", [1, 2])
     path, state = FakeWLED.posted[-1]
     assert path == "/json/state"
