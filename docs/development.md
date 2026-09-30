@@ -24,6 +24,16 @@ No controllers are needed. Settings are in `pyproject.toml`.
 | `test_config_loader.py` | Every validation rule, and that the real `config.ini` loads |
 | `test_wled_client.py` | The HTTP client against a local fake WLED server |
 
+### CI
+
+`.github/workflows/tests.yml` runs the suite on every pull request and every
+push to `main`: Python 3.11, dependencies from `requirements.txt`, then
+`python -m pytest`. It needs no secrets, `.env` or hardware. A newer push to
+the same branch cancels the run still in progress.
+
+A new test dependency has to go in `requirements.txt`, or CI fails even when
+the tests pass locally.
+
 ### Test doubles (`tests/conftest.py`)
 
 - **`FakeClient`** — records every state written instead of sending it.

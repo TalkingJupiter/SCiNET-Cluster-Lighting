@@ -1,5 +1,7 @@
 # SCinet Cluster Lighting
 
+[![Tests](https://github.com/TalkingJupiter/SCiNET-Cluster-Lighting/actions/workflows/tests.yml/badge.svg)](https://github.com/TalkingJupiter/SCiNET-Cluster-Lighting/actions/workflows/tests.yml)
+
 LED lighting for the SCinet NOC racks. Every rack has WS2815 strips up both
 sides, driven by WLED controllers. When nothing is happening the racks run
 an orange chase. When the front end asks about a machine, the rack units
