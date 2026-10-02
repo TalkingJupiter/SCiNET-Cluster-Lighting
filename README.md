@@ -1,6 +1,7 @@
 # SCinet Cluster Lighting
 
 [![Tests](https://github.com/TalkingJupiter/SCiNET-Cluster-Lighting/actions/workflows/tests.yml/badge.svg)](https://github.com/TalkingJupiter/SCiNET-Cluster-Lighting/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 LED lighting for the SCinet NOC racks. Every rack has WS2815 strips up both
 sides, driven by WLED controllers. When nothing is happening the racks run
@@ -88,3 +89,7 @@ docs/                          detailed documentation
 | Which racks share which controller | To decide (`config.ini` has one rack per controller as a placeholder) |
 | Cut or uncut strips | To decide (sets `side-b`) |
 | kW meter from Redfish | Not started |
+
+## License
+
+[MIT](LICENSE) © 2026 Batuhan Sencer
