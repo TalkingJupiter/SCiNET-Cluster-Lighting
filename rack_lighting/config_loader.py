@@ -33,7 +33,7 @@ class Side:
 class Rack:
     name: str
     led_ip: str
-    redfish_ips: tuple
+    # redfish_ips: tuple
     sides: tuple
 
 
@@ -63,8 +63,10 @@ class Config:
     min_kw: float
     max_kw: float
     energy_ranges: dict
-    redfish_username: str
-    redfish_password: str
+    stale_after_seconds: int
+    power_ingest_token: str | None
+    # redfish_username: str
+    # redfish_password: str
 
 
 def _ints(text):
@@ -99,6 +101,7 @@ def load(path=CONFIG_PATH):
     if not config.read(path):
         raise FileNotFoundError(f"Unable to find config file: {path}")
 
+    power_ingest_token = os.environ.get("power_ingest_token") or None
     units = config["Units"]
     u_count = units.getint("u-count")
     pattern = _ints(units["pattern"])
@@ -108,11 +111,13 @@ def load(path=CONFIG_PATH):
     used = first_u_pixel + sum(pattern[i % len(pattern)] for i in range(u_count))
 
     controller = config["Led-Controller"]
+    energy = config["Energy"]
     mode = controller["mode"].strip().lower()
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}, got {mode!r}")
     max_segments = controller.getint("max-segments", 16)
     segments_per_rack = controller.getint("segments-per-rack", 8)
+    stale_after_seconds = energy.getfloat("stale-after-seconds", 30.0) 
 
     racks = {}
     controllers = {}
@@ -139,7 +144,7 @@ def load(path=CONFIG_PATH):
         rack = Rack(
             name=name,
             led_ip=section["led-ip"],
-            redfish_ips=tuple(ip.strip() for ip in section["redfish-ips"].split(",")),
+            # redfish_ips=tuple(ip.strip() for ip in section["redfish-ips"].split(",")),
             sides=sides,
         )
         racks[name] = rack
@@ -168,10 +173,10 @@ def load(path=CONFIG_PATH):
         for level in ("low", "mid", "high")
     }
 
-    redfish_username = os.environ.get("redfish_username")
-    redfish_password = os.environ.get("redfish_password")
-    if mode == "meter" and not (redfish_username and redfish_password):
-        raise RuntimeError("The selected mode is meter but there is no username or password")
+    # redfish_username = os.environ.get("redfish_username")
+    # redfish_password = os.environ.get("redfish_password")
+    # if mode == "meter" and not (redfish_username and redfish_password):
+    #     raise RuntimeError("The selected mode is meter but there is no username or password")
 
     return Config(
         racks=racks,
@@ -189,6 +194,8 @@ def load(path=CONFIG_PATH):
         min_kw=config.getfloat("Energy", "min-kw"),
         max_kw=config.getfloat("Energy", "max-kw"),
         energy_ranges=energy_ranges,
-        redfish_username=redfish_username,
-        redfish_password=redfish_password,
+        stale_after_seconds=stale_after_seconds,
+        power_ingest_token = power_ingest_token,
+        # redfish_username=redfish_username,
+        # redfish_password=redfish_password,
     )

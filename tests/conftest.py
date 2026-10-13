@@ -12,19 +12,16 @@ EFFECTS = ["Solid", "Blink", "Breathe"] + [f"FX{i}" for i in range(3, 28)] + ["C
 BASE_INI = """
 [Rack1]
 led-ip = 10.0.0.1
-redfish-ips = 10.1.0.1, 10.1.0.2
 side-a = 0, 113, up
 side-b = 113, 113, down
 
 [Rack2]
 led-ip = 10.0.0.1
-redfish-ips = 10.1.0.3
 side-a = 226, 113, up
 side-b = 339, 113, down
 
 [Rack3]
 led-ip = 10.0.0.3
-redfish-ips = 10.1.0.5
 side-a = 0, 113, up
 side-b = 113, 113, down
 
@@ -80,8 +77,7 @@ class FakeClient:
 @pytest.fixture
 def write_ini(tmp_path, monkeypatch):
     """Write an ini (BASE_INI with replacements) and load it."""
-    monkeypatch.delenv("redfish_username", raising=False)
-    monkeypatch.delenv("redfish_password", raising=False)
+    monkeypatch.delenv("power_ingest_token", raising=False)
     monkeypatch.setattr(config_loader, "load_dotenv", lambda: None)
 
     def _write(text=BASE_INI, **replace):
