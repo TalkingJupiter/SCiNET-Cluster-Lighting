@@ -7,14 +7,16 @@ idle: every highlight returns to the chase on its own after
 `[Highlight] hold-seconds`.
 
     GET  /racks                       rack names and what each is showing
+    PUT  /racks/{rack}/power
     POST /racks/{rack}/highlight      {"units": [1, 2]}
 """
 
 import logging
+import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, Header, HTTPException
+from pydantic import AwareDatetime, BaseModel, Field
 
 from . import config_loader
 from .rack_lights import RackLights
@@ -31,10 +33,20 @@ class HighlightResponse(BaseModel):
     units: list[int]
     hold_seconds: float
 
+class PowerReading(BaseModel):
+    kw: float | None = Field(ge=0)
+    measured_at: AwareDatetime
 
 def create_app(cfg=None, lights=None):
     cfg = cfg or config_loader.load()
     lights = lights or RackLights(cfg)
+
+    def check_token(authorization: str):
+        if not cfg.power_ingest_token:
+            raise HTTPException(401, "power ingest is not configured")
+        expected = f"Bearer {cfg.power_ingest_token}"
+        if not secrets.compare_digest(authorization.encode(), expected.encode()):
+            raise HTTPException(401, "invalid token")
 
     @asynccontextmanager
     async def lifespan(app):
@@ -53,6 +65,11 @@ def create_app(cfg=None, lights=None):
             name: {"showing": list(lights.showing[name]) or "idle"}
             for name in cfg.racks
         }
+
+    @app.put("/racks/{rack}/power", status_code=204)
+    def set_power(rack: str, reading: PowerReading, authorization: str = Header()):
+        # Get the given data from DevOPS side and pass it to animation side
+        pass
 
     # Plain `def`, not `async def`: the WLED client blocks, so FastAPI runs
     # this in its thread pool instead of stalling every other request.
