@@ -36,15 +36,18 @@ class HighlightResponse(BaseModel):
     units: list[int]
     hold_seconds: float
 
+
 class PowerResponse(BaseModel):
     rack: str
-    kw: float | None 
+    kw: float | None
     measured_at: AwareDatetime | None
     age_seconds: float | None
+
 
 class PowerReading(BaseModel):
     kw: float | None = Field(ge=0, allow_inf_nan=False)
     measured_at: AwareDatetime
+
 
 def create_app(cfg=None, lights=None, power=None):
     cfg = cfg or config_loader.load()

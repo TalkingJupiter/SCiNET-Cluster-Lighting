@@ -41,4 +41,3 @@ class PowerStore:
 
     def age(self, reading):
         return self._clock() - reading.received_at
-    

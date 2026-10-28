@@ -72,7 +72,7 @@ Current values: orange chase at speed 160; white breathe at speed 200
 |---|---|---|
 | `min-kw` | — | Bottom of the kW meter's scale (not used yet) |
 | `max-kw` | — | Top of the kW meter's scale (not used yet) |
-| `stale-after-seconds` | `30` | Whole seconds. A rack whose last power reading arrived longer ago than this counts as having no data. |
+| `stale-after-seconds` | `30` | Seconds (fractions allowed, must be > 0). A rack whose last power reading arrived longer ago than this counts as having no data. |
 
 Power readings are pushed by DevOps through `PUT /racks/{rack}/power`; see
 the [API](api.md#put-racksrackpower).
