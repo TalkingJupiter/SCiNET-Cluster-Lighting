@@ -38,3 +38,7 @@ class PowerStore:
             if self._clock() - reading.received_at > self.stale_after_s:
                 return None
             return reading
+
+    def age(self, reading):
+        return self._clock() - reading.received_at
+    
