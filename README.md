@@ -9,15 +9,15 @@ an orange chase. When the front end asks about a machine, the rack units
 (U's) it lives in breathe white for 5 seconds, then the rack goes back to
 the chase on its own.
 
-A kW meter mode, driven by Redfish power readings, is planned but not built
-yet.
+DevOps pushes each rack's power reading to the API, and a kW meter mode that
+shows it on the racks is planned but not built yet.
 
 ## Quick start
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-cp .env.example .env            # only needed for meter mode
+cp .env.example .env            # then set power_ingest_token
 ```
 
 Check the configuration loads and list the racks:
@@ -59,6 +59,7 @@ rack_lighting/
   config_loader.py             reads and validates config.ini
   layout.py                    rack unit -> LED pixel mapping
   rack_lights.py               what each rack shows; the 5 s hold timer
+  power.py                     latest pushed power reading per rack
   clients/wled_client.py       WLED JSON API client
   modes/
     animate.py                 idle chase
@@ -85,10 +86,11 @@ docs/                          detailed documentation
 | Idle chase | Done |
 | U highlight with 5 s hold | Done |
 | HTTP API | Done |
+| Power readings pushed by DevOps (`PUT`/`GET /racks/{rack}/power`) | Done; DevOps side not connected yet |
 | Tested on a real controller | **Not yet** |
 | Which racks share which controller | To decide (`config.ini` has one rack per controller as a placeholder) |
 | Cut or uncut strips | To decide (sets `side-b`) |
-| kW meter from Redfish | Not started |
+| kW meter animation | Not started |
 
 ## License
 

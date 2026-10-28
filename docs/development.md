@@ -20,7 +20,9 @@ No controllers are needed. Settings are in `pyproject.toml`.
 | `test_layout.py` | 3-3-2 pattern, U grouping, side mirroring, parsing `1,2` / `5-8` |
 | `test_modes.py` | Chase and highlight segments, the 4-group limit |
 | `test_rack_lights.py` | Shared controllers, segment numbering, the hold timer and its races, retries |
-| `test_api.py` | Endpoints, status codes, startup |
+| `test_api.py` | Highlight endpoints, status codes, startup |
+| `test_power.py` | The power store: ignoring older readings, going stale |
+| `test_power_api.py` | Power endpoints: the token, 401/404/422 cases, `Infinity`, `age_seconds` |
 | `test_config_loader.py` | Every validation rule, and that the real `config.ini` loads |
 | `test_wled_client.py` | The HTTP client against a local fake WLED server |
 
@@ -43,6 +45,8 @@ the tests pass locally.
   calls `fire_all()`, so expiry is tested without waiting 5 seconds.
 - **`write_ini`** — writes a config (by default two racks sharing one
   controller plus a third on its own) with any key replaced, and loads it.
+- **`FakeClock`** — replaces `time.monotonic` in `PowerStore`. Tests set
+  `clock.now` to jump ahead, so readings go stale without waiting 30 seconds.
 
 `RackLights` takes `client_factory` and `schedule` arguments so tests can
 pass these in. `create_app(cfg, lights)` does the same for the API.
@@ -56,11 +60,14 @@ the segments and writes the controller.
 
 For the kW meter, the likely shape:
 
-1. `clients/redfish_client.py` — read power for a rack's `redfish-ips`.
-2. `modes/kw_meter.py` — power → segments (e.g. one per colour zone per
-   side; 3 per side fits the 8-per-rack budget).
-3. A poller that updates each idle rack's meter and rewrites its controller
-   under the same lock `rack_lights.py` already uses.
+1. Power readings already arrive through `PUT /racks/{rack}/power` and are
+   kept in `PowerStore` (`power.py`); `store.get(rack)` returns the current
+   reading or `None`.
+2. `modes/kw_meter.py` — reading → segments (e.g. one per colour zone per
+   side; 3 per side fits the 8-per-rack budget). `None`, or `kw` of `None`,
+   must look different from 0 kW.
+3. Something that periodically redraws each idle rack's meter and rewrites
+   its controller under the same lock `rack_lights.py` already uses.
 
 ## Conventions
 
