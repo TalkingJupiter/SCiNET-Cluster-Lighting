@@ -1,16 +1,7 @@
 from datetime import datetime, timezone
 
 from rack_lighting.power import PowerStore
-
-
-class FakeClock:
-    """Stands in for time.monotonic. Tests move time by setting `now`."""
-
-    def __init__(self):
-        self.now = 0.0
-
-    def __call__(self):
-        return self.now
+from tests.conftest import FakeClock
 
 
 def at(second):

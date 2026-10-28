@@ -126,3 +126,13 @@ class FakeTimers:
         due, self.pending = self.live(), []
         for _, fn, _ in due:
             fn()
+
+
+class FakeClock:
+    """Stands in for time.monotonic. Tests move time by setting `now`."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
