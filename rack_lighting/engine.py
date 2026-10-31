@@ -25,7 +25,7 @@ def main(argv=None):
     if not args.rack:
         print(f"[INFO] mode: {cfg.mode}")
         for name, rack in cfg.racks.items():
-            print(f"[INFO] {name}: led {rack.led_ip}, redfish {', '.join(rack.redfish_ips)}")
+            print(f"[INFO] {name}: led {rack.led_ip}")
         return 0
 
     lights = RackLights(cfg)

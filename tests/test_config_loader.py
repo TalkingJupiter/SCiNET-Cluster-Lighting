@@ -8,7 +8,6 @@ from tests.conftest import BASE_INI
 
 def test_loads(cfg):
     assert list(cfg.racks) == ["Rack1", "Rack2", "Rack3"]
-    assert cfg.racks["Rack1"].redfish_ips == ("10.1.0.1", "10.1.0.2")
     assert cfg.mode == "chase"
     assert cfg.pattern == (3, 3, 2)
     assert cfg.idle.effect == "Chase"
@@ -63,18 +62,29 @@ def test_rack_without_sides(write_ini):
         write_ini(bad)
 
 
-def test_chase_mode_needs_no_redfish_credentials(cfg):
-    assert cfg.redfish_username is None
+def test_loads_without_power_token(cfg):
+    """No token configured is allowed; the power endpoint then rejects everything."""
+    assert cfg.power_ingest_token is None
 
 
-def test_meter_mode_needs_both_credentials(write_ini, monkeypatch):
-    with pytest.raises(RuntimeError):
-        write_ini(mode="meter")
-    monkeypatch.setenv("redfish_username", "admin")
-    with pytest.raises(RuntimeError):
-        write_ini(mode="meter")
-    monkeypatch.setenv("redfish_password", "x")
-    assert write_ini(mode="meter").mode == "meter"
+def test_stale_after_defaults_to_30_seconds(cfg):
+    assert cfg.stale_after_seconds == 30
+
+
+def test_stale_after_accepts_fractions(write_ini):
+    # [Energy] is the last section in BASE_INI, so appending lands inside it.
+    assert write_ini(BASE_INI + "stale-after-seconds = 7.5\n").stale_after_seconds == 7.5
+
+
+@pytest.mark.parametrize("value", ["0", "-5"])
+def test_stale_after_must_be_positive(write_ini, value):
+    with pytest.raises(ValueError, match="stale-after-seconds"):
+        write_ini(BASE_INI + f"stale-after-seconds = {value}\n")
+
+
+def test_power_token_is_read_from_the_environment(write_ini, monkeypatch):
+    monkeypatch.setenv("power_ingest_token", "s3cret")
+    assert write_ini().power_ingest_token == "s3cret"
 
 
 def test_unknown_mode(write_ini):

@@ -13,7 +13,6 @@ Any section whose name starts with `Rack` is a rack.
 ```ini
 [Rack1]
 led-ip = 10.10.1.1
-redfish-ips = 10.11.11.1, 10.11.11.2
 side-a = 0, 113, up
 side-b = 113, 113, down
 ```
@@ -21,7 +20,6 @@ side-b = 113, 113, down
 | Key | Meaning |
 |---|---|
 | `led-ip` | WLED controller address. Racks with the same `led-ip` share that controller. |
-| `redfish-ips` | Comma-separated Redfish addresses, for the kW meter (not used yet). |
 | `side-*` | One entry per side of the rack: `first pixel, pixel count, up\|down` |
 
 **Sides.** The first pixel is 0-based and counted along the controller's
@@ -39,7 +37,7 @@ Checked at load:
 
 | Key | Default | Meaning |
 |---|---|---|
-| `mode` | — | `chase` or `meter`. `meter` is not implemented and requires Redfish credentials. |
+| `mode` | — | `chase` or `meter`. `meter` is not implemented yet. |
 | `connection-type` | `""` | Read but not used yet. |
 | `max-segments` | `16` | WLED segment slots per controller. 16 is the ESP8266 limit. |
 | `segments-per-rack` | `8` | Each rack's share, so one rack's highlight can't take its neighbour's segments. |
@@ -68,22 +66,43 @@ Checked at load: racks on a controller × `segments-per-rack` ≤ `max-segments`
 Current values: orange chase at speed 160; white breathe at speed 200
 (medium-fast), brightness 150, held for 5 seconds.
 
-## `[Led-config]` and `[Energy]`
+## `[Energy]`
 
-Reserved for the kW meter: pixel ranges for the low/mid/high energy colours,
-and the kW range the meter covers. Read and parsed, not used yet.
+| Key | Default | Meaning |
+|---|---|---|
+| `min-kw` | — | Bottom of the kW meter's scale (not used yet) |
+| `max-kw` | — | Top of the kW meter's scale (not used yet) |
+| `stale-after-seconds` | `30` | Seconds (fractions allowed, must be > 0). A rack whose last power reading arrived longer ago than this counts as having no data. |
+
+Power readings are pushed by DevOps through `PUT /racks/{rack}/power`; see
+the [API](api.md#put-racksrackpower).
+
+## `[Led-config]`
+
+Reserved for the kW meter: pixel ranges for the low/mid/high energy colours.
+Read and parsed, not used yet.
 
 Note: `mid` ends at 85 and `high` starts at 88, so pixels 86–87 fall in no
 range. Worth fixing when the meter is built.
 
 ## `.env`
 
-Only needed in `meter` mode. Copy `.env.example` to `.env`.
+Secrets live in `.env` at the repo root, which is git-ignored: never commit
+it. Copy `.env.example` to start.
 
 | Variable | Meaning |
 |---|---|
-| `redfish_username` | Redfish user |
-| `redfish_password` | Redfish password |
+| `power_ingest_token` | Shared secret DevOps sends as `Authorization: Bearer <token>` to push power readings |
 
-In `meter` mode both must be set or startup fails. `.env` is git-ignored;
-never commit it.
+Generate a token with:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+**If it isn't set** (missing or empty), the API still starts and highlights
+work, but every power push is rejected with `401`. Nobody can push without
+a token, not even by sending `Bearer None`.
+
+**If it leaks**, generate a new one, update `.env` on the server and on the
+DevOps side, and restart the service. The old one stops working at once.
