@@ -95,3 +95,16 @@ def test_dead_controller_at_startup_does_not_stop_the_api(cfg, timers):
     with TestClient(create_app(cfg, lights)) as api:
         assert api.get("/racks").status_code == 200
         assert api.post("/racks/Rack3/highlight", json={"units": [1]}).status_code == 200
+
+
+def meter_threads():
+    import threading
+    return [t for t in threading.enumerate() if t.name == "kw-meter"]
+
+
+def test_meter_runs_while_the_app_runs(cfg, lights):
+    """Started at startup (after idle_all), stopped at shutdown."""
+    assert meter_threads() == []
+    with TestClient(create_app(cfg, lights)):
+        assert len(meter_threads()) == 1
+    assert meter_threads() == []
