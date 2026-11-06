@@ -65,18 +65,30 @@ no-data-effect = Blink
 """
 
 
+# What each BASE_INI controller should report: the end of its last side.
+LED_COUNTS = {"10.0.0.1": 452, "10.0.0.3": 226}
+
+
 class FakeClient:
-    """Stands in for WLEDClient: records every state written."""
+    """Stands in for WLEDClient: records every state written, and answers
+    info() like a healthy WLED with the LED count the config expects."""
 
     def __init__(self, host):
         self.host = host
         self.states = []
+        self.led_count = LED_COUNTS.get(host, 0)
+        self.uptime = 1000
+        self.info_timeouts = []          # the timeout of every info() call
 
     def effects(self):
         return EFFECTS
 
     def set_state(self, state):
         self.states.append(state)
+
+    def info(self, timeout=None):
+        self.info_timeouts.append(timeout)
+        return {"ver": "0.15.0", "leds": {"count": self.led_count}, "uptime": self.uptime}
 
 
 @pytest.fixture

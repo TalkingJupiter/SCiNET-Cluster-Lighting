@@ -11,6 +11,9 @@ from tests.conftest import EFFECTS, FakeTimers
 from rack_lighting.clients.wled_client import WLEDClient
 
 
+INFO = {"ver": "0.15.0", "leds": {"count": 602}, "uptime": 84211}
+
+
 class FakeWLED(BaseHTTPRequestHandler):
     posted = []
     gets = []
@@ -25,7 +28,8 @@ class FakeWLED(BaseHTTPRequestHandler):
 
     def do_GET(self):
         FakeWLED.gets.append(self.path)
-        self._reply(EFFECTS if self.path == "/json/eff" else {})
+        replies = {"/json/eff": EFFECTS, "/json/info": INFO}
+        self._reply(replies.get(self.path, {}))
 
     def do_POST(self):
         length = int(self.headers["Content-Length"])
@@ -57,6 +61,30 @@ def test_effects_are_fetched_once(wled):
 def test_set_state_posts_json(wled):
     WLEDClient(wled).set_state({"on": True})
     assert FakeWLED.posted == [("/json/state", {"on": True})]
+
+
+def test_info_reads_json_info(wled):
+    assert WLEDClient(wled).info() == INFO
+    assert FakeWLED.gets == ["/json/info"]
+
+
+def test_info_takes_its_own_timeout(monkeypatch):
+    """A status probe gives up sooner than a write."""
+    timeouts = []
+
+    def urlopen(req, timeout):
+        timeouts.append((req.full_url, timeout))
+        raise OSError("not sending")
+    monkeypatch.setattr("rack_lighting.clients.wled_client.urllib.request.urlopen", urlopen)
+    client = WLEDClient("wled", timeout=3.0)
+    for call in (lambda: client.info(timeout=1.5), client.info, lambda: client.set_state({})):
+        with pytest.raises(OSError):
+            call()
+    assert timeouts == [
+        ("http://wled/json/info", 1.5),
+        ("http://wled/json/info", 3.0),
+        ("http://wled/json/state", 3.0),
+    ]
 
 
 def test_end_to_end_highlight(wled, cfg):
