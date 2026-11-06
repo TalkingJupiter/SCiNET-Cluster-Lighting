@@ -44,6 +44,12 @@ class Style:
     speed: int = 128
     intensity: int = 128
 
+@dataclass(frozen=True)
+class MeterStyle:
+    green: Style
+    amber: Style
+    red: Style
+    no_data: Style
 
 @dataclass(frozen=True)
 class Config:
@@ -61,7 +67,9 @@ class Config:
     highlight_hold_s: float     # a highlight returns to idle after this long
     min_kw: float
     max_kw: float
-    energy_ranges: dict
+    amber_from_kw: int
+    red_from_kw: int
+    meter: MeterStyle
     stale_after_seconds: float   # a power reading older than this counts as no data
     power_ingest_token: str | None   # None = power pushes are all rejected
 
@@ -91,6 +99,40 @@ def _style(section):
         intensity=section.getint("intensity", 128),
     )
 
+def _meterStyle(section):
+    green = Style(
+        effect="Solid",
+        color=_ints(section["green"]),
+        brightness=section.getint("brightness", 255),
+        speed=section.getint("speed", 128),
+        intensity=section.getint("intensity", 128),
+    )
+
+    amber = Style(
+        effect="Solid",
+        color=_ints(section["amber"]),
+        brightness=section.getint("brightness", 255),
+        speed=section.getint("speed", 128),
+        intensity=section.getint("intensity", 128), 
+    )
+
+    red = Style(
+        effect="Solid",
+        color=_ints(section["red"]),
+        brightness=section.getint("brightness", 255),
+        speed=section.getint("speed", 128),
+        intensity=section.getint("intensity", 128), 
+    )
+
+    no_data = Style(
+        effect=section["no-data-effect"],
+        color=_ints(section["red"]),
+        brightness=section.getint("brightness", 255),
+        speed=section.getint("no-data-speed", 128),
+        intensity=section.getint("intensity", 128),  
+    )
+
+    return MeterStyle(green, amber, red, no_data)
 
 def load(path=CONFIG_PATH):
     load_dotenv()
@@ -108,7 +150,25 @@ def load(path=CONFIG_PATH):
     used = first_u_pixel + sum(pattern[i % len(pattern)] for i in range(u_count))
 
     controller = config["Led-Controller"]
+
     energy = config["Energy"]
+    amber_from_kw = energy.getint("amber-from-kw")
+    red_from_kw = energy.getint("red-from-kw")
+
+    min_kw = energy.getint("min-kw")
+    max_kw = energy.getint("max-kw")
+    if min_kw >= max_kw:
+        raise ValueError(f"min-kw({min_kw}) cannot be equal or greater than max-kw({max_kw})")
+
+    if red_from_kw >= max_kw:
+        raise ValueError(f"red-from-kw({red_from_kw}) cannot greater than or equal to max-kw({max_kw})")
+
+    if amber_from_kw <= 0 or amber_from_kw <= min_kw:
+        raise ValueError(f"amber-from-kw({amber_from_kw}) cannot be less than or equal to 0 or min-kw({min_kw})")
+
+    if amber_from_kw >= red_from_kw:
+        raise ValueError(f"amber-from-kw({amber_from_kw}) cannot be greater than or equal to red-from-kw({red_from_kw})")
+    
     mode = controller["mode"].strip().lower()
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}, got {mode!r}")
@@ -121,7 +181,7 @@ def load(path=CONFIG_PATH):
     racks = {}
     controllers = {}
     for name in config.sections():
-        if not name.startswith("Rack"):
+        if not name.startswith("Rack"): # NOTE: This will block the DNOC configs to load
             continue
         section = config[name]
         sides = tuple(
@@ -165,11 +225,6 @@ def load(path=CONFIG_PATH):
     if highlight_hold_s <= 0:
         raise ValueError("[Highlight] hold-seconds must be greater than 0")
 
-    # NOTE: Do we need to keep the low values or can we do it via prev high value?
-    energy_ranges = {
-        level: _ints(config["Led-config"][f"{level}-energy-pixel-range"].replace(":", ","))
-        for level in ("low", "mid", "high")
-    }
 
     return Config(
         racks=racks,
@@ -184,9 +239,11 @@ def load(path=CONFIG_PATH):
         idle=_style(config["Idle"]),
         highlight=_style(config["Highlight"]),
         highlight_hold_s=highlight_hold_s,
-        min_kw=config.getfloat("Energy", "min-kw"),
-        max_kw=config.getfloat("Energy", "max-kw"),
-        energy_ranges=energy_ranges,
+        min_kw=min_kw,
+        max_kw=max_kw,
+        amber_from_kw=amber_from_kw,
+        red_from_kw=red_from_kw,
+        meter=_meterStyle(config["Meter"]),
         stale_after_seconds=stale_after_seconds,
         power_ingest_token=power_ingest_token,
     )
