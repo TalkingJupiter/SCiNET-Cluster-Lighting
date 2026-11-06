@@ -19,6 +19,7 @@ No controllers are needed. Settings are in `pyproject.toml`.
 |---|---|
 | `test_layout.py` | 3-3-2 pattern, U grouping, side mirroring, parsing `1,2` / `5-8` |
 | `test_modes.py` | Chase and highlight segments, the 4-group limit |
+| `test_kw_meter.py` | kW → bar height, zone colours, clamping, decimals, no data vs 0 kW |
 | `test_rack_lights.py` | Shared controllers, segment numbering, the hold timer and its races, retries |
 | `test_api.py` | Highlight endpoints, status codes, startup |
 | `test_power.py` | The power store: ignoring older readings, going stale |
