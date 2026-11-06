@@ -122,8 +122,59 @@ def test_real_config_file_loads(monkeypatch):
     """The config.ini in the repo must always be loadable."""
     monkeypatch.setattr(config_loader, "load_dotenv", lambda: None)
     cfg = config_loader.load()
-    assert len(cfg.racks) == 8
+    assert len(cfg.racks) == 14
     assert cfg.u_count == 42
+
+
+def test_real_config_loads_the_dnoc_racks(monkeypatch):
+    """Issue #11: these used to be skipped because their names don't start
+    with "Rack"."""
+    monkeypatch.setattr(config_loader, "load_dotenv", lambda: None)
+    cfg = config_loader.load()
+    dnoc = [name for name in cfg.racks if name.startswith("DNOC")]
+    assert dnoc == ["DNOC646", "DNOC2009", "DNOC2544", "DNOC4409", "DNOC4545", "DNOC6706"]
+    for name in dnoc:
+        assert cfg.controllers[cfg.racks[name].led_ip] == (name,), "alone on its controller"
+
+
+# ---------------------------------------------------------------- what is a rack
+
+DNOC = """
+[DNOC646]
+led-ip = 10.0.0.9
+side-a = 0, 113, up
+side-b = 113, 113, down
+"""
+
+
+def test_a_rack_can_have_any_name(write_ini):
+    cfg = write_ini(BASE_INI + DNOC)
+    assert list(cfg.racks) == ["Rack1", "Rack2", "Rack3", "DNOC646"]
+    assert cfg.controllers["10.0.0.9"] == ("DNOC646",)
+    assert [s.start for s in cfg.racks["DNOC646"].sides] == [0, 113]
+
+
+def test_settings_sections_are_not_racks(write_ini):
+    """[Meter], [Energy] and the rest have no led-ip or sides; neither does
+    a section someone adds for their own notes."""
+    cfg = write_ini(BASE_INI + "\n[Notes]\nowner = noc\n")
+    assert list(cfg.racks) == ["Rack1", "Rack2", "Rack3"]
+
+
+@pytest.mark.parametrize("text", [
+    "[DNOC646]\nled_ip = 10.0.0.9\nside-a = 0, 113, up\n",     # typo in led-ip
+    "[DNOC646]\nside-a = 0, 113, up\n",                         # forgotten
+], ids=["typo", "missing"])
+def test_a_rack_without_led_ip_is_an_error_not_skipped(write_ini, text):
+    """Skipping it would make the rack vanish silently, which is the bug
+    #11 was about."""
+    with pytest.raises(ValueError, match="DNOC646 has sides but no led-ip"):
+        write_ini(BASE_INI + "\n" + text)
+
+
+def test_a_rack_with_led_ip_but_no_sides_is_still_an_error(write_ini):
+    with pytest.raises(ValueError, match="DNOC646 needs at least one side"):
+        write_ini(BASE_INI + "\n[DNOC646]\nled-ip = 10.0.0.9\n")
 
 
 # ---------------------------------------------------------------- kW meter

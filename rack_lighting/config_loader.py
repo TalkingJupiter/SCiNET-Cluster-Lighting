@@ -78,6 +78,10 @@ def _ints(text):
     return tuple(int(x) for x in text.split(","))
 
 
+def _is_rack(section):
+    return "led-ip" in section or any(key.startswith("side-") for key in section)
+
+
 def _side(name, text):
     parts = [x.strip() for x in text.split(",")]
     if len(parts) != 3:
@@ -181,9 +185,13 @@ def load(path=CONFIG_PATH):
     racks = {}
     controllers = {}
     for name in config.sections():
-        if not name.startswith("Rack"): # NOTE: This will block the DNOC configs to load
-            continue
+        # A rack is any section with a led-ip or a side, whatever it's called
+        # (Rack1, DNOC646, ...). Settings sections have neither.
         section = config[name]
+        if not _is_rack(section):
+            continue
+        if "led-ip" not in section:
+            raise ValueError(f"{name} has sides but no led-ip")
         sides = tuple(
             _side(f"{name} {key}", value)
             for key, value in section.items()

@@ -6,9 +6,11 @@ Settings live in `config/config.ini`. To use a different file, set
 The file is validated when it loads. A mistake stops startup with a message
 that names the problem, rather than lighting the wrong LEDs.
 
-## `[RackN]` — one section per rack
+## Racks — one section per rack
 
-Any section whose name starts with `Rack` is a rack.
+Any section with a `led-ip` or a `side-*` key is a rack, whatever its name:
+`[Rack1]`, `[DNOC646]`. The name is what the API uses, e.g.
+`POST /racks/DNOC646/highlight`. Settings sections have neither key.
 
 ```ini
 [Rack1]
@@ -29,6 +31,8 @@ See [hardware](hardware.md#sides) for the layouts.
 
 Checked at load:
 
+- every rack has a `led-ip` (a section with sides but no `led-ip`, e.g. a
+  typo like `led_ip`, stops startup rather than silently losing the rack)
 - every rack has at least one side
 - every side is long enough for all 42 U's
 - sides of racks on the same controller don't overlap
