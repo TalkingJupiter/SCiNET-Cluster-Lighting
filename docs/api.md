@@ -6,11 +6,13 @@
 
 Interactive docs are served at `/docs` while it runs.
 
-On startup every rack is set to the idle chase. A controller that can't be
-reached is logged and skipped; the API starts anyway.
+On startup every rack is set to idle: the chase, or the kW meter when
+`mode = meter`. A controller that can't be reached is logged and skipped;
+the API starts anyway, and a background refresh keeps trying it every
+2 seconds.
 
 The front end can only request highlights. **There is no idle endpoint**:
-every highlight returns to the chase on its own after `hold-seconds`
+every highlight returns to idle on its own after `hold-seconds`
 (5 by default).
 
 | Endpoint | Who calls it | Token |
@@ -22,7 +24,7 @@ every highlight returns to the chase on its own after `hold-seconds`
 
 ## `POST /racks/{rack}/highlight`
 
-Breathe the given rack units, then return to the chase.
+Breathe the given rack units, then return to idle (the chase or the meter).
 
 ```json
 {"units": [1, 2]}
@@ -77,9 +79,10 @@ controller.
 
 ## Power readings
 
-DevOps pushes each rack's power to the API; the kW meter (not built yet)
-reads it from there. The API only **stores** readings: a push never writes to
-the LEDs.
+DevOps pushes each rack's power to the API; the kW meter reads it from
+there. The API only **stores** readings: a push never writes to the LEDs
+itself. In `meter` mode a background refresh redraws idle racks from the
+store every 2 seconds, so a new reading shows within about 2 seconds.
 
 Pushing needs a shared token, `power_ingest_token`, set in `.env` on the
 server (see [configuration](configuration.md#env)). Generate one with:

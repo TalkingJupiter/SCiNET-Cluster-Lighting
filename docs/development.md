@@ -20,6 +20,7 @@ No controllers are needed. Settings are in `pyproject.toml`.
 | `test_layout.py` | 3-3-2 pattern, U grouping, side mirroring, parsing `1,2` / `5-8` |
 | `test_modes.py` | Chase and highlight segments, the 4-group limit |
 | `test_kw_meter.py` | kW → bar height, zone colours, clamping, decimals, no data vs 0 kW |
+| `test_meter_lights.py` | Meter mode in `RackLights`: refresh, write-on-change, the 60 s resend, highlights next to meters, the background thread |
 | `test_rack_lights.py` | Shared controllers, segment numbering, the hold timer and its races, retries |
 | `test_api.py` | Highlight endpoints, status codes, startup |
 | `test_power.py` | The power store: ignoring older readings, going stale |
@@ -49,8 +50,9 @@ the tests pass locally.
 - **`FakeClock`** — replaces `time.monotonic` in `PowerStore`. Tests set
   `clock.now` to jump ahead, so readings go stale without waiting 30 seconds.
 
-`RackLights` takes `client_factory` and `schedule` arguments so tests can
-pass these in. `create_app(cfg, lights)` does the same for the API.
+`RackLights` takes `client_factory`, `schedule`, `power` and `clock`
+arguments so tests can pass these in. `create_app(cfg, lights, power)` does
+the same for the API.
 
 ## Adding a mode
 
@@ -59,16 +61,14 @@ without IDs — see `modes/animate.py`. Use `modes.animate.segment()` so every
 field is set. `rack_lights.py` decides which mode each rack shows, numbers
 the segments and writes the controller.
 
-For the kW meter, the likely shape:
+The kW meter is an example of a mode that depends on outside data:
 
-1. Power readings already arrive through `PUT /racks/{rack}/power` and are
-   kept in `PowerStore` (`power.py`); `store.get(rack)` returns the current
-   reading or `None`.
-2. `modes/kw_meter.py` — reading → segments (e.g. one per colour zone per
-   side; 3 per side fits the 8-per-rack budget). `None`, or `kw` of `None`,
-   must look different from 0 kW.
-3. Something that periodically redraws each idle rack's meter and rewrites
-   its controller under the same lock `rack_lights.py` already uses.
+1. Readings arrive through `PUT /racks/{rack}/power` and are kept in
+   `PowerStore` (`power.py`); `store.get(rack)` returns the current reading
+   or `None`.
+2. `modes/kw_meter.py` turns a reading into segments, up to 3 per side.
+3. `RackLights._idle_segments()` picks the meter in `meter` mode, and
+   `RackLights.refresh()`, run every 2 s by `start_meter()`, redraws it.
 
 ## Conventions
 

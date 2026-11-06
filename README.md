@@ -9,8 +9,9 @@ an orange chase. When the front end asks about a machine, the rack units
 (U's) it lives in breathe white for 5 seconds, then the rack goes back to
 the chase on its own.
 
-DevOps pushes each rack's power reading to the API, and a kW meter mode that
-shows it on the racks is planned but not built yet.
+DevOps pushes each rack's power reading to the API. In `meter` mode an idle
+rack shows it as a kW meter instead of the chase: a bar up the rack, green,
+then amber, then red as power rises, and blinking red when there's no data.
 
 ## Quick start
 
@@ -58,13 +59,13 @@ rack_lighting/
   __main__.py                  python -m rack_lighting
   config_loader.py             reads and validates config.ini
   layout.py                    rack unit -> LED pixel mapping
-  rack_lights.py               what each rack shows; the 5 s hold timer
+  rack_lights.py               what each rack shows; hold timer; meter refresh
   power.py                     latest pushed power reading per rack
   clients/wled_client.py       WLED JSON API client
   modes/
     animate.py                 idle chase
     highlight.py               U highlight
-    kw_meter.py                kW meter (not implemented)
+    kw_meter.py                kW meter: reading -> coloured bar
 tests/                         pytest suite, runs without hardware
 docs/                          detailed documentation
 ```
@@ -88,9 +89,9 @@ docs/                          detailed documentation
 | HTTP API | Done |
 | Power readings pushed by DevOps (`PUT`/`GET /racks/{rack}/power`) | Done; DevOps side not connected yet |
 | Tested on a real controller | **Not yet** |
-| Which racks share which controller | To decide (`config.ini` has one rack per controller as a placeholder) |
-| Cut or uncut strips | To decide (sets `side-b`) |
-| kW meter animation | Not started |
+| kW meter (`mode = meter`) | Done; not tried on hardware |
+| Which racks share which controller | Decided: 2 racks per controller, one per WLED output |
+| Cut or uncut strips | Decided: one uncut 301-LED strip per rack |
 
 ## License
 

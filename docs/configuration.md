@@ -37,7 +37,7 @@ Checked at load:
 
 | Key | Default | Meaning |
 |---|---|---|
-| `mode` | — | `chase` or `meter`. `meter` is not implemented yet. |
+| `mode` | — | What an idle rack shows: `chase`, or `meter` for the [kW meter](#meter). Highlights work the same in both. |
 | `connection-type` | `""` | Read but not used yet. |
 | `max-segments` | `16` | WLED segment slots per controller. 16 is the ESP8266 limit. |
 | `segments-per-rack` | `8` | Each rack's share, so one rack's highlight can't take its neighbour's segments. |
@@ -70,20 +70,43 @@ Current values: orange chase at speed 160; white breathe at speed 200
 
 | Key | Default | Meaning |
 |---|---|---|
-| `min-kw` | — | Bottom of the kW meter's scale (not used yet) |
-| `max-kw` | — | Top of the kW meter's scale (not used yet) |
+| `min-kw` | — | Bottom of the meter's scale: at or below this the bar is dark. Whole kW. |
+| `max-kw` | — | Top of the scale: at or above this the bar fills the rack. Whole kW. |
+| `amber-from-kw` | — | The bar turns amber above this. Whole kW. |
+| `red-from-kw` | — | The bar turns red above this. Whole kW. |
 | `stale-after-seconds` | `30` | Seconds (fractions allowed, must be > 0). A rack whose last power reading arrived longer ago than this counts as having no data. |
+
+Checked at load: `min-kw` < `amber-from-kw` < `red-from-kw` < `max-kw`,
+and `amber-from-kw` > 0.
 
 Power readings are pushed by DevOps through `PUT /racks/{rack}/power`; see
 the [API](api.md#put-racksrackpower).
 
-## `[Led-config]`
+## `[Meter]`
 
-Reserved for the kW meter: pixel ranges for the low/mid/high energy colours.
-Read and parsed, not used yet.
+How the kW meter looks when `mode = meter`.
 
-Note: `mid` ends at 85 and `high` starts at 88, so pixels 86–87 fall in no
-range. Worth fixing when the meter is built.
+| Key | Default | Meaning |
+|---|---|---|
+| `brightness` | `255` | Segment brightness for every zone and for no data, 0–255 |
+| `green` | — | `R, G, B` of the bar from `min-kw` up to `amber-from-kw` |
+| `amber` | — | `R, G, B` from `amber-from-kw` up to `red-from-kw` |
+| `red` | — | `R, G, B` from `red-from-kw` up to the reading. Also the no-data colour |
+| `no-data-effect` | — | WLED effect name for no data, e.g. `Blink` |
+| `no-data-speed` | `128` | Speed of that effect, 0–255 |
+
+The meter is a still bar up the U area of every side of the rack (the
+pixels across the top stay dark):
+
+| Situation | The rack shows |
+|---|---|
+| A reading | A bar from the bottom, its height `kw` on the `min-kw`–`max-kw` scale: green, then amber above `amber-from-kw`, then red above `red-from-kw` |
+| 0 kW, or at/below `min-kw` | Dark |
+| No reading, a stale one, or DevOps sent `kw: null` | The whole column in `red`, with `no-data-effect` |
+
+Current values: 0–50 kW, amber from 30, red from 40, so on a 112-pixel rack
+amber starts at pixel 67 and red at pixel 90. Readings are redrawn every
+2 seconds; a controller is only written when its bar actually changes.
 
 ## `.env`
 
