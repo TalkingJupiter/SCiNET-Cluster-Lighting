@@ -51,8 +51,9 @@ class PowerReading(BaseModel):
 
 def create_app(cfg=None, lights=None, power=None):
     cfg = cfg or config_loader.load()
-    lights = lights or RackLights(cfg)
     power = power or PowerStore(cfg.racks, cfg.stale_after_seconds)
+    # The meter must read the same store the PUT endpoint writes to.
+    lights = lights or RackLights(cfg, power=power)
 
     def check_token(authorization: str | None):
         if not cfg.power_ingest_token:
