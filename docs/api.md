@@ -21,6 +21,8 @@ every highlight returns to idle on its own after `hold-seconds`
 | `GET /racks` | Anyone | No |
 | `PUT /racks/{rack}/power` | DevOps | **Yes** |
 | `GET /racks/{rack}/power` | Anyone | No |
+| `GET /health` | Docker, systemd, load balancer | No |
+| `GET /status` | Monitoring, whoever runs the service | No |
 
 ## `POST /racks/{rack}/highlight`
 
@@ -75,7 +77,8 @@ What every rack is showing right now.
 ```
 
 This is what the server last sent successfully, not a read-back from the
-controller.
+controller. [`GET /status`](#get-status) says whether the controllers are
+actually there.
 
 ## Power readings
 
@@ -175,6 +178,127 @@ How to tell the cases apart:
 
 ```bash
 curl localhost:8000/racks/Rack1/power
+```
+
+## Health and status
+
+Two questions, two endpoints: is the process up (`/health`), and can it do
+its job (`/status`).
+
+## `GET /health`
+
+Liveness check for Docker, systemd or a load balancer.
+
+**200**
+
+```json
+{"status": "ok"}
+```
+
+It makes no controller calls, so it answers immediately even when every
+controller is down. If it doesn't answer, the process is down or stuck.
+
+```bash
+curl localhost:8000/health
+```
+
+## `GET /status`
+
+Whether each controller can be reached and matches the config, and what
+each rack is showing.
+
+**200** (`ok` or `degraded`) or **503** (`down`)
+
+Shortened to two controllers, one of them unreachable:
+
+```json
+{
+  "status": "degraded",
+  "mode": "meter",
+  "controllers": {
+    "140.221.240.5": {
+      "reachable": true,
+      "racks": ["Rack1", "Rack2"],
+      "wled_version": "0.15.0",
+      "led_count": 602,
+      "expected_led_count": 602,
+      "led_count_mismatch": false,
+      "uptime_s": 84211,
+      "reboots": 0,
+      "last_error": null,
+      "checked_at": "2026-11-05T12:00:00Z"
+    },
+    "140.221.240.9": {
+      "reachable": false,
+      "racks": ["DNOC646"],
+      "wled_version": null,
+      "led_count": null,
+      "expected_led_count": 301,
+      "led_count_mismatch": null,
+      "uptime_s": null,
+      "reboots": 0,
+      "last_error": "timed out",
+      "checked_at": "2026-11-05T12:00:00Z"
+    }
+  },
+  "racks": {
+    "Rack1": {"showing": [1, 2], "hold_remaining_s": 3.2, "kw": 12.4, "kw_age_s": 4.1},
+    "Rack2": {"showing": "idle", "hold_remaining_s": null, "kw": null, "kw_age_s": null}
+  }
+}
+```
+
+| `status` | Meaning | HTTP |
+|---|---|---|
+| `ok` | Every controller reachable, and every LED count as configured | `200` |
+| `degraded` | Some controllers unreachable, or an LED count doesn't match | `200` |
+| `down` | No controller reachable | `503` |
+
+A monitor can alert on the `503`; `degraded` is for a person to look at.
+
+**Per controller**
+
+| Field | Meaning |
+|---|---|
+| `reachable` | It answered `GET /json/info` within 1.5 s |
+| `racks` | The racks the config puts on it |
+| `wled_version` | WLED's `ver`. `null` if unreachable |
+| `led_count` | WLED's `leds.count`: how many LEDs the controller is set up for. `null` if unreachable |
+| `expected_led_count` | The end of the last configured side on this controller (602 for two racks, 301 for one) |
+| `led_count_mismatch` | `true` if the two differ: the config and the controller disagree, usually a bring-up mistake (wrong LED count in WLED's LED settings, or wrong `side-*` values). `null` if unreachable |
+| `uptime_s` | Seconds since the controller booted. `null` if unreachable |
+| `reboots` | Reboots noticed since the API started (uptime went down between two checks) |
+| `last_error` | Why the last check failed, or `null` |
+| `checked_at` | When it was checked (UTC) |
+
+A controller that rebooted has forgotten its segments. Nothing extra is
+needed: the background refresh resends every controller's state at least
+every 60 seconds, so it is back within a minute. `reboots` just makes it
+visible.
+
+**Per rack**
+
+| Field | Meaning |
+|---|---|
+| `showing` | As in `GET /racks`: highlighted U's, or `"idle"` |
+| `hold_remaining_s` | Seconds until a highlight returns to idle. `null` when idle |
+| `kw`, `kw_age_s` | As in `GET /racks/{rack}/power`: the current reading and its age. Both `null` when there is no current reading |
+
+**How controllers are checked**
+
+- All controllers are checked at the same time, each with a 1.5 s timeout,
+  so a dead controller doesn't make the others wait.
+- The result is cached for 5 seconds. Calling `/status` more often doesn't
+  reach the controllers more often, and a call that arrives while a check
+  is running waits for that check instead of starting another.
+- A check waits for any write to the same controller to finish first, so
+  the two never overlap. If a write has held the controller for more than
+  1.5 s, the controller is reported unreachable.
+- So `/status` takes up to about 3 seconds when a controller is down, and
+  answers at once from the cache otherwise.
+
+```bash
+curl localhost:8000/status
 ```
 
 ## Not yet
