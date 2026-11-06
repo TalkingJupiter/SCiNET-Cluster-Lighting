@@ -6,6 +6,8 @@ The front end can only ask for a highlight. It cannot put a rack back to
 idle: every highlight returns to idle (the chase, or the kW meter in meter
 mode) on its own after `[Highlight] hold-seconds`.
 
+    GET  /health                      the process is up (no controller calls)
+    GET  /status                      controllers reachable? 503 if none are
     GET  /racks                       rack names and what each is showing
     PUT  /racks/{rack}/power          DevOps pushes a reading (bearer token)
     GET  /racks/{rack}/power          the latest reading, if fresh
@@ -15,8 +17,9 @@ mode) on its own after `[Highlight] hold-seconds`.
 import logging
 import secrets
 from contextlib import asynccontextmanager
+from typing import Literal
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import AwareDatetime, BaseModel, Field
@@ -24,6 +27,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 from . import config_loader
 from .power import PowerStore
 from .rack_lights import RackLights
+from .status import ControllerChecker, overall
 
 log = logging.getLogger(__name__)
 
@@ -50,11 +54,39 @@ class PowerReading(BaseModel):
     measured_at: AwareDatetime
 
 
-def create_app(cfg=None, lights=None, power=None):
+class ControllerStatus(BaseModel):
+    reachable: bool
+    racks: list[str]
+    wled_version: str | None
+    led_count: int | None
+    expected_led_count: int
+    led_count_mismatch: bool | None
+    uptime_s: int | None
+    reboots: int
+    last_error: str | None
+    checked_at: AwareDatetime
+
+
+class RackStatus(BaseModel):
+    showing: list[int] | Literal["idle"]
+    hold_remaining_s: float | None
+    kw: float | None
+    kw_age_s: float | None
+
+
+class StatusResponse(BaseModel):
+    status: Literal["ok", "degraded", "down"]
+    mode: str
+    controllers: dict[str, ControllerStatus]
+    racks: dict[str, RackStatus]
+
+
+def create_app(cfg=None, lights=None, power=None, checker=None):
     cfg = cfg or config_loader.load()
     power = power or PowerStore(cfg.racks, cfg.stale_after_seconds)
     # The meter must read the same store the PUT endpoint writes to.
     lights = lights or RackLights(cfg, power=power)
+    checker = checker or ControllerChecker(cfg, lights)
 
     def check_token(authorization: str | None):
         if not cfg.power_ingest_token:
@@ -89,6 +121,37 @@ def create_app(cfg=None, lights=None, power=None):
         # 500 instead of a 422. Leave the value out.
         errors = [{k: v for k, v in e.items() if k != "input"} for e in exc.errors()]
         return JSONResponse(status_code=422, content={"detail": errors})
+
+    @app.get("/health")
+    def health():
+        # Liveness only: if this answers, the process is up. It touches no
+        # controller, so a dead controller can't make it fail or hang.
+        return {"status": "ok"}
+
+    # Plain `def`: probing blocks (on the network and the controller locks).
+    @app.get("/status", response_model=StatusResponse,
+             responses={503: {"description": "No controller is reachable"}})
+    def status(response: Response):
+        controllers = checker.controllers()
+        state = overall(controllers)
+        if state == "down":
+            response.status_code = 503
+        return StatusResponse(
+            status=state,
+            mode=cfg.mode,
+            controllers=controllers,
+            racks={name: rack_status(name) for name in cfg.racks},
+        )
+
+    def rack_status(name):
+        remaining = lights.hold_remaining(name)
+        reading = power.get(name)
+        return RackStatus(
+            showing=list(lights.showing[name]) or "idle",
+            hold_remaining_s=None if remaining is None else round(remaining, 1),
+            kw=None if reading is None else reading.kw,
+            kw_age_s=None if reading is None else round(power.age(reading), 1),
+        )
 
     @app.get("/racks")
     def racks():
