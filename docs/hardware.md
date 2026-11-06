@@ -3,9 +3,22 @@
 ## Strips and controllers
 
 - WS2815 LED strips, driven by WLED controllers over the WLED JSON API.
-- Each rack has LEDs up both sides.
-- Two racks per controller is the plan. `config.ini` currently has one rack
-  per controller as a placeholder until the wiring is decided.
+- Each rack has **one uncut strip of 301 LEDs**: up side A, across the top,
+  and down side B.
+- **Rack1–Rack8** share controllers in pairs, one rack per WLED output.
+- **The six DNOC racks** (`DNOC646`, `DNOC2009`, `DNOC2544`, `DNOC4409`,
+  `DNOC4545`, `DNOC6706`) each have a controller to themselves.
+
+| Controller | Racks | WLED LED count |
+|---|---|---|
+| `.5` | Rack1, Rack2 | 602 (output 2 starts at 301) |
+| `.6` | Rack3, Rack4 | 602 |
+| `.7` | Rack5, Rack6 | 602 |
+| `.8` | Rack7, Rack8 | 602 |
+| `.9` – `.14` | one DNOC rack each | 301 |
+
+A section in `config.ini` is a rack if it has a `led-ip` or a side, so the
+DNOC names work the same as `Rack1` in the API: `/racks/DNOC646/highlight`.
 
 ## The 3-3-2 pattern
 
@@ -36,6 +49,27 @@ together.
 
 Pixels no side claims stay dark.
 
+**The layout in use: one uncut 301-LED strip per rack**
+
+```ini
+; first rack on a controller (output 1)    second rack (output 2)
+side-a = 1, 113, up                         side-a = 302, 113, up
+side-b = 188, 113, down                     side-b = 489, 113, down
+```
+
+| Pixels (output 1) | What they are |
+|---|---|
+| 0 | First LED, skipped (as on the calibrated prototype) |
+| 1–113 | Side A, up: U1 = 1–3, U42 = 111–112, 113 spare |
+| 114–187 | Across the top: 74 LEDs, dark |
+| 188–300 | Side B, down: U42 = 189–190, U1 = 298–300, 188 spare |
+
+Output 2 is numbered after output 1, so the second rack is the same plus
+301. These numbers come from the prototype's measurements; confirm the
+strip length and the dark section on the mounted hardware.
+
+The other layouts the code supports:
+
 **Strip cut, side B wired on from the top of side A**
 
 ```ini
@@ -61,8 +95,8 @@ side-a = 0, 113, up
 side-b = 113, 113, up
 ```
 
-**Two racks on one controller.** The second rack's sides start after the
-first rack's:
+**Two racks on one controller, cut strips.** The second rack's sides start
+after the first rack's:
 
 ```ini
 [Rack1]                         [Rack2]
@@ -93,10 +127,25 @@ replaces the chase on that rack, it doesn't add to it.
 A highlight costs one segment per side for each separate group of U's. With
 8 segments per rack and 2 sides, a rack can highlight 4 separate groups.
 
+## WLED settings
+
+Set these in each controller's web UI before the first run:
+
+- **LED Preferences:** total LED count 602 on a paired controller (output 1:
+  301 LEDs starting at 0; output 2: 301 LEDs starting at 301), or 301 on a
+  DNOC controller. Too few and the end of the strip never lights; WLED
+  doesn't report an error.
+- **Max segments:** at least 16 (the ESP8266 limit). The server checks its
+  own budget against `max-segments`, not against the controller.
+- **Boot preset (recommended):** save the orange chase as a preset and set
+  it to apply at boot. After a power cut the server resends its state within
+  60 seconds anyway; this covers that minute.
+
 ## First bring-up
 
 1. Put the controller's IP in `led-ip` and check it's reachable:
-   `curl http://<ip>/json/info`.
+   `curl http://<ip>/json/info`. Its `leds.count` should be 602 (paired)
+   or 301 (DNOC).
 2. `python -m rack_lighting Rack1 idle` — the chase should climb both sides.
    If one side runs down, flip that side's `up`/`down`.
 3. `python -m rack_lighting Rack1 1` — U1 should breathe at the bottom of
@@ -107,6 +156,14 @@ A highlight costs one segment per side for each separate group of U's. With
    back and compare segment `start`/`stop` with what was sent:
    `curl http://<ip>/json/state`. WLED ignores input it doesn't accept
    without reporting an error, so reading back is the only proof.
+
+6. Check the second rack on the controller (`Rack2 1`): U1 should sit at
+   the bottom of Rack2, not at the top of Rack1. If not, output 2's start in
+   WLED isn't 301.
+7. **The meter:** set `mode = meter` in `[Led-Controller]`, run the API and
+   push a reading (see [API](api.md#put-racksrackpower)). With no reading
+   the rack blinks red; 35 kW should light green up to about U25 and amber
+   to about U29 on both sides.
 
 For checking pixel boundaries, `effect = Solid` in `[Highlight]` is easier to
 read than a breathe.
