@@ -49,14 +49,19 @@ brightness = 150
 speed = 200
 hold-seconds = 5
 
-[Led-config]
-low-energy-pixel-range = 0:65
-mid-energy-pixel-range = 66:85
-high-energy-pixel-range = 88:113
-
 [Energy]
 min-kw = 0
 max-kw = 50
+amber-from-kw = 30
+red-from-kw = 40
+stale-after-seconds = 30
+
+[Meter]
+brightness=200
+green = 0, 200, 0
+amber = 255, 140, 0
+red = 255, 0, 0
+no-data-effect = Blink
 """
 
 

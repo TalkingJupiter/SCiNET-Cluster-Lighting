@@ -3,11 +3,12 @@
     uvicorn rack_lighting.api:create_app --factory --host 0.0.0.0 --port 8000
 
 The front end can only ask for a highlight. It cannot put a rack back to
-idle: every highlight returns to the chase on its own after
-`[Highlight] hold-seconds`.
+idle: every highlight returns to idle (the chase, or the kW meter in meter
+mode) on its own after `[Highlight] hold-seconds`.
 
     GET  /racks                       rack names and what each is showing
-    PUT  /racks/{rack}/power
+    PUT  /racks/{rack}/power          DevOps pushes a reading (bearer token)
+    GET  /racks/{rack}/power          the latest reading, if fresh
     POST /racks/{rack}/highlight      {"units": [1, 2]}
 """
 
@@ -51,8 +52,9 @@ class PowerReading(BaseModel):
 
 def create_app(cfg=None, lights=None, power=None):
     cfg = cfg or config_loader.load()
-    lights = lights or RackLights(cfg)
     power = power or PowerStore(cfg.racks, cfg.stale_after_seconds)
+    # The meter must read the same store the PUT endpoint writes to.
+    lights = lights or RackLights(cfg, power=power)
 
     def check_token(authorization: str | None):
         if not cfg.power_ingest_token:
@@ -65,11 +67,17 @@ def create_app(cfg=None, lights=None, power=None):
 
     @asynccontextmanager
     async def lifespan(app):
-        # Start from a known state: every rack chasing.
+        # Start from a known state: every rack idle (chase or meter).
         failed = lights.idle_all()
         if failed:
             log.warning("not reachable at startup: %s", ", ".join(failed))
-        yield
+        # Keeps meters current and resends state to controllers that
+        # rebooted; it also retries the ones that were down just now.
+        stop_meter = lights.start_meter()
+        try:
+            yield
+        finally:
+            stop_meter()
 
     app = FastAPI(title="SCinet rack lighting", lifespan=lifespan)
     app.state.lights = lights

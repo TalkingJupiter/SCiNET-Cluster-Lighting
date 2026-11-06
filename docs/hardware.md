@@ -88,6 +88,7 @@ replaces the chase on that rack, it doesn't add to it.
 | highlight `1,2` | idle | 2 + 2 = 4 |
 | highlight `1,2` | highlight `20` | 2 + 2 = 4 |
 | highlight `1,5,9,20` | highlight `3,7,11,30` | 8 + 8 = 16 |
+| meter, red zone reached | highlight `1,5,9,20` | 6 + 8 = 14 |
 
 A highlight costs one segment per side for each separate group of U's. With
 8 segments per rack and 2 sides, a rack can highlight 4 separate groups.
