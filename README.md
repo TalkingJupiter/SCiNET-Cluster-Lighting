@@ -3,8 +3,8 @@
 [![Tests](https://github.com/TalkingJupiter/SCiNET-Cluster-Lighting/actions/workflows/tests.yml/badge.svg)](https://github.com/TalkingJupiter/SCiNET-Cluster-Lighting/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-LED lighting for the SCinet NOC racks. Every rack has WS2815 strips up both
-sides, driven by WLED controllers. When nothing is happening the racks run
+LED lighting for the SCinet NOC racks (Rack1–Rack8 and six DNOC racks).
+Every rack has a WS2815 strip up both sides, driven by WLED controllers. When nothing is happening the racks run
 an orange chase. When the front end asks about a machine, the rack units
 (U's) it lives in breathe white for 5 seconds, then the rack goes back to
 the chase on its own.
@@ -87,11 +87,18 @@ docs/                          detailed documentation
 | Idle chase | Done |
 | U highlight with 5 s hold | Done |
 | HTTP API | Done |
-| Power readings pushed by DevOps (`PUT`/`GET /racks/{rack}/power`) | Done; DevOps side not connected yet |
+| Power readings pushed by DevOps (`PUT`/`GET /racks/{rack}/power`) | Done; DevOps doesn't have the token yet, so no readings arrive |
+| kW meter | Done, but **off**: `config.ini` has `mode = chase`. Switch after hardware bring-up |
+| All 14 racks in `config.ini` (incl. DNOC) | Done |
+| Layout | Decided: one uncut 301-LED strip per rack; Rack1–8 two per controller, DNOC racks one each ([hardware](docs/hardware.md)) |
 | Tested on a real controller | **Not yet** |
-| kW meter (`mode = meter`) | Done; not tried on hardware |
-| Which racks share which controller | Decided: 2 racks per controller, one per WLED output |
-| Cut or uncut strips | Decided: one uncut 301-LED strip per rack |
+| Health and status endpoints (#3) | In progress |
+| Running as a service (systemd on the Pi) | Not started |
+| How a highlight ends (#13) | To decide: auto-return (built), solid phase, or kiosk reset |
+
+Known gaps: highlights need no authentication and CORS is not enabled (see
+[API](docs/api.md#not-yet)); both are fine on the NOC network but CORS is
+needed before a browser front end on another origin can call the API.
 
 ## License
 
