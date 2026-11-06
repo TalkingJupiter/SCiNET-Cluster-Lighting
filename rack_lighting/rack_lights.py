@@ -78,6 +78,8 @@ class RackLights:
         # Bumped on every highlight. An expiry only fires if nothing newer
         # has happened on that rack since it was scheduled.
         self._generation = {name: 0 for name in cfg.racks}
+        # When each armed hold timer is due, on self._clock, for GET /status.
+        self._hold_until = {}
         # Last state each controller accepted, and when, so refresh() can
         # skip writes that would change nothing (until a resend is due).
         self._sent = {}
@@ -168,6 +170,15 @@ class RackLights:
         if old is not None:
             old.cancel()
         self._timers[name] = self._schedule(delay, lambda: self._expire(name, generation))
+        self._hold_until[name] = self._clock() + delay
+
+    def hold_remaining(self, name):
+        """Seconds until highlighted rack `name` goes back to idle, or None if
+        it is idle. After a failed return to idle, the time until the retry."""
+        until = self._hold_until.get(name)
+        if until is None or not self.showing[name]:
+            return None
+        return max(0.0, until - self._clock())
 
     def _expire(self, name, generation):
         """Timer callback: back to idle, unless something newer happened.

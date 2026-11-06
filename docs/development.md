@@ -25,6 +25,7 @@ No controllers are needed. Settings are in `pyproject.toml`.
 | `test_api.py` | Highlight endpoints, status codes, startup |
 | `test_power.py` | The power store: ignoring older readings, going stale |
 | `test_power_api.py` | Power endpoints: the token, 401/404/422 cases, `Infinity`, `age_seconds` |
+| `test_status.py` | `/health` and `/status`: ok/degraded/down and 503, LED count mismatch, parallel probes, the cache, the controller lock, reboots, hold countdown |
 | `test_config_loader.py` | Every validation rule, and that the real `config.ini` loads |
 | `test_wled_client.py` | The HTTP client against a local fake WLED server |
 
@@ -42,17 +43,19 @@ the tests pass locally.
 
 - **`FakeClient`** — records every state written instead of sending it.
   Has the same effect list positions as real WLED (Solid 0, Breathe 2,
-  Chase 28).
+  Chase 28). `info()` answers like a healthy WLED whose LED count matches
+  the test config; set `led_count` or `uptime` on it to change that.
 - **`FakeTimers`** — replaces the hold timer. Nothing fires until the test
   calls `fire_all()`, so expiry is tested without waiting 5 seconds.
 - **`write_ini`** — writes a config (by default two racks sharing one
   controller plus a third on its own) with any key replaced, and loads it.
-- **`FakeClock`** — replaces `time.monotonic` in `PowerStore`. Tests set
-  `clock.now` to jump ahead, so readings go stale without waiting 30 seconds.
+- **`FakeClock`** — replaces `time.monotonic` in `PowerStore`,
+  `RackLights` and `ControllerChecker`. Tests set `clock.now` to jump
+  ahead, so readings go stale and caches expire without waiting.
 
 `RackLights` takes `client_factory`, `schedule`, `power` and `clock`
-arguments so tests can pass these in. `create_app(cfg, lights, power)` does
-the same for the API.
+arguments so tests can pass these in. `create_app(cfg, lights, power,
+checker)` does the same for the API.
 
 ## Adding a mode
 

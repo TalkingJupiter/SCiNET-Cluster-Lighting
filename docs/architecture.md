@@ -17,12 +17,13 @@ DevOps ────HTTP──▶   │   ▲          │      ▲              
 | `engine.py` | Same actions from the command line | No |
 | `rack_lights.py` | Remembers what every rack shows, builds each controller's state, runs the hold timers and the meter refresh | Through the client |
 | `power.py` | Latest pushed reading per rack; decides when one is stale | No |
+| `status.py` | Probes the controllers for `GET /status`, in parallel, cached for 5 s | Through the client |
 | `modes/animate.py` | Segments for the idle chase | No |
 | `modes/kw_meter.py` | Segments for the kW meter: a reading becomes up to 3 coloured zones per side | No |
 | `modes/highlight.py` | Segments for a highlight; enforces the segment budget | No |
 | `layout.py` | U numbers → pixel ranges, mirroring for downward sides | No |
 | `config_loader.py` | Reads and validates `config.ini` | No |
-| `clients/wled_client.py` | Two calls: read the effect list, write state | Yes |
+| `clients/wled_client.py` | Three calls: read the effect list, write state, read info (version, LED count, uptime) | Yes |
 
 Everything below `rack_lights.py` is pure: it takes values and returns
 values. That is what lets the whole test suite run without a controller.
@@ -120,6 +121,28 @@ way to tell us. So each controller's state is also resent at least every
 60 seconds, even if nothing changed. This runs in chase mode too, where
 it's the only thing the refresh does.
 
+### Status checks are on demand, cached, and take the controller lock
+
+`GET /status` asks each controller for `/json/info`. The checks run when
+`/status` is called, not on a timer, all controllers at once with a 1.5 s
+timeout, and the answer is reused for 5 seconds. However often `/status` is
+polled, each controller sees at most one small GET every 5 seconds.
+
+The refresh's own failures aren't enough to tell whether a controller is
+up: in chase mode it only writes once a minute.
+
+A check takes the controller's lock, like a write. The ESP8266 handles only
+a few connections at once, and WLED builds every JSON reply in one shared
+buffer, answering "busy" to a request that arrives while it's in use. A
+check landing in the middle of a highlight could make the highlight fail.
+A check that can't get the lock within 1.5 s gives up and reports the
+controller unreachable: a write that takes that long is a write to a
+controller that isn't answering.
+
+Uptime going down between two checks means the controller rebooted.
+`/status` counts it, but doesn't resend anything itself: the 60-second
+resend already does that.
+
 ## Failure behaviour
 
 | Situation | What happens |
@@ -128,7 +151,9 @@ it's the only thing the refresh does.
 | Controller down on a highlight | `502`; nothing changes, no timer starts |
 | Controller down when a hold expires | Retries every `hold-seconds` |
 | Controller down during the meter refresh | Logged once, skipped, retried every 2 s; logged again when it's back |
-| Controller rebooted (lost its segments) | Back to the right state within 60 s |
+| Controller rebooted (lost its segments) | Back to the right state within 60 s; `/status` counts it in `reboots` |
+| Controller unreachable | `/status` shows it with `last_error` and says `degraded`, or `down` (`503`) if none are reachable; `/health` still answers `200` |
+| WLED's LED count differs from the config | `/status` sets `led_count_mismatch` and says `degraded` |
 | DevOps stops sending | After `stale-after-seconds` the rack blinks red (meter mode) |
 | Bad request | `404`/`422`; nothing is sent to any controller |
 | Process stopped during a hold | Waits for the timer, then exits |

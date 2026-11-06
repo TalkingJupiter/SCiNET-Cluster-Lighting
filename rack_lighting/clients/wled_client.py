@@ -1,8 +1,8 @@
 """Minimal WLED JSON API client (stdlib only).
 
-Only two calls are needed: read the effect list, write state. Anything with
-the same two methods can stand in for this, which is how the tests run
-without a controller.
+Three calls: read the effect list, write state, and read the controller's
+info for `GET /status`. Anything with the same methods can stand in for
+this, which is how the tests run without a controller.
 """
 
 import json
@@ -15,7 +15,7 @@ class WLEDClient:
         self.timeout = timeout
         self._effects = None
 
-    def _request(self, path, body=None):
+    def _request(self, path, body=None, timeout=None):
         data = None if body is None else json.dumps(body).encode()
         req = urllib.request.Request(
             self.base + path,
@@ -23,7 +23,7 @@ class WLEDClient:
             method="GET" if body is None else "POST",
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout or self.timeout) as resp:
             return json.loads(resp.read() or b"null")
 
     def effects(self):
@@ -34,3 +34,11 @@ class WLEDClient:
 
     def set_state(self, state):
         return self._request("/json/state", state)
+
+    def info(self, timeout=None):
+        """GET /json/info: version (`ver`), LED count (`leds.count`), `uptime`.
+
+        Takes its own, shorter timeout: a status check should give up on a
+        dead controller sooner than a write does.
+        """
+        return self._request("/json/info", timeout=timeout)
