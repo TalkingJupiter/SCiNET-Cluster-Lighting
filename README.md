@@ -77,7 +77,8 @@ docs/                          detailed documentation
 | [Architecture](docs/architecture.md) | How a request becomes LEDs, and why it is built this way |
 | [API](docs/api.md) | Endpoints, requests, responses, errors |
 | [Configuration](docs/configuration.md) | Every setting in `config.ini` and `.env` |
-| [Hardware](docs/hardware.md) | Strips, the 3-3-2 pixel pattern, sides, segment limits, first bring-up |
+| [Hardware](docs/hardware.md) | Strips, how U's map to LEDs, sides, measuring a strip, segment limits, WLED settings, first bring-up |
+| [Deployment](docs/deployment.md) | Installing on the Pi, running by hand or under systemd, checking it works, go-live checklist |
 | [Development](docs/development.md) | Tests, test doubles, adding a mode |
 
 ## Status
@@ -90,10 +91,10 @@ docs/                          detailed documentation
 | Power readings pushed by DevOps (`PUT`/`GET /racks/{rack}/power`) | Done; DevOps doesn't have the token yet, so no readings arrive |
 | kW meter | Done, but **off**: `config.ini` has `mode = chase`. Switch after hardware bring-up |
 | All 14 racks in `config.ini` (incl. DNOC) | Done |
-| Layout | Decided: one uncut 301-LED strip per rack; Rack1–8 two per controller, DNOC racks one each ([hardware](docs/hardware.md)) |
+| Layout | Measured on Rack5: one uncut 259-LED strip per rack, 109 LEDs per side; Rack1–8 two per controller, DNOC racks one each ([hardware](docs/hardware.md)). Other racks still to check |
 | Tested on a real controller | **Not yet** |
-| Health and status endpoints (#3) | In progress |
-| Running as a service (systemd on the Pi) | Not started |
+| Health and status endpoints (`/health`, `/status`) | Done |
+| Running on the Pi | Documented ([deployment](docs/deployment.md)); no Pi yet |
 | How a highlight ends (#13) | To decide: auto-return (built), solid phase, or kiosk reset |
 
 Known gaps: highlights need no authentication and CORS is not enabled (see

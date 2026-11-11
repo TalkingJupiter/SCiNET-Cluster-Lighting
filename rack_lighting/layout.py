@@ -4,9 +4,11 @@ Two coordinate systems:
   rack  - pixels along one side, 0 = bottom. The same for every side.
   strip - the physical LED index on the controller.
 
-U numbers become rack pixels using the repeating pattern (3, 3, 2): U1 = 3 px,
-U2 = 3 px, U3 = 2 px, U4 = 3 px, ... Each side then puts rack pixels on
-the strip, flipped if the side runs downward.
+U numbers become rack pixels by spreading the U's evenly over the side's
+length, rounding up: a 112-pixel side gives 3, 3, 2, 3, 3, 2, ...; the real
+109-pixel sides give a mix of 3s and 2s, with U1 starting at the bottom and
+U42 ending at the top. Each side then puts rack pixels on the strip, flipped
+if the side runs downward.
 
 All ranges are half-open: (lo, hi) covers lo .. hi-1. WLED segments use the
 same convention (stop is exclusive), so ranges go straight into the payload.
@@ -30,13 +32,19 @@ def parse_units(text):
     return sorted(units)
 
 
-def unit_range(u, pattern, first_u_pixel=0):
-    """Rack pixels (lo, hi) for a single U."""
-    if u < 1:
-        raise ValueError(f"U{u} is below U1")
-    n = len(pattern)
-    lo = first_u_pixel + sum(pattern[i % n] for i in range(u - 1))
-    return lo, lo + pattern[(u - 1) % n]
+def _ceil_div(a, b):
+    return -(-a // b)
+
+
+def unit_range(u, u_count, length):
+    """Rack pixels (lo, hi) for U `u` when `u_count` U's share `length` pixels.
+
+    Rounding up (not to nearest) makes 112 pixels come out as the familiar
+    3, 3, 2 pattern. Integer maths, so there are no float surprises.
+    """
+    if not 1 <= u <= u_count:
+        raise ValueError(f"U{u} is outside 1..{u_count}")
+    return _ceil_div((u - 1) * length, u_count), _ceil_div(u * length, u_count)
 
 
 def unit_runs(units, u_count):
@@ -59,10 +67,10 @@ def unit_runs(units, u_count):
     return runs
 
 
-def run_range(first, last, pattern, first_u_pixel=0):
+def run_range(first, last, u_count, length):
     """Rack pixels covering U `first` through U `last`."""
-    lo, _ = unit_range(first, pattern, first_u_pixel)
-    _, hi = unit_range(last, pattern, first_u_pixel)
+    lo, _ = unit_range(first, u_count, length)
+    _, hi = unit_range(last, u_count, length)
     return lo, hi
 
 

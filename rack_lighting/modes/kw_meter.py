@@ -13,7 +13,7 @@ def kw_meter(cfg, rack, effects, reading):
         level = (kw - cfg.min_kw) / (cfg.max_kw - cfg.min_kw)
         return max(0, min(round(level * height), height))
 
-    bar_lo, bar_hi = run_range(1, cfg.u_count, cfg.pattern, cfg.first_u_pixel)
+    bar_lo, bar_hi = run_range(1, cfg.u_count, cfg.u_count, rack.sides[0].count)
     height = bar_hi - bar_lo
     segments = []
     if reading is None or reading.kw is None:

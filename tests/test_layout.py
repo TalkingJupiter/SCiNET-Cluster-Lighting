@@ -3,7 +3,6 @@ import pytest
 from rack_lighting.layout import parse_units, run_range, to_strip, unit_range, unit_runs
 from rack_lighting.config_loader import Side
 
-PATTERN = (3, 3, 2)
 
 
 # ---------------------------------------------------------------- parse_units
@@ -27,36 +26,51 @@ def test_parse_units_rejects_garbage(text):
         parse_units(text)
 
 
-# ---------------------------------------------------------------- the 3,3,2 pattern
+# ---------------------------------------------------------------- spreading U's
 
-def test_first_units_follow_3_3_2():
-    assert unit_range(1, PATTERN) == (0, 3)
-    assert unit_range(2, PATTERN) == (3, 6)
-    assert unit_range(3, PATTERN) == (6, 8)      # every third U loses a pixel
-    assert unit_range(4, PATTERN) == (8, 11)
+def sizes(length, u_count=42):
+    return [hi - lo for lo, hi in (unit_range(u, u_count, length) for u in range(1, u_count + 1))]
 
 
-def test_units_tile_with_no_gaps_or_overlaps():
+def test_112_pixels_give_the_old_3_3_2_pattern():
+    assert unit_range(1, 42, 112) == (0, 3)
+    assert unit_range(2, 42, 112) == (3, 6)
+    assert unit_range(3, 42, 112) == (6, 8)
+    assert unit_range(4, 42, 112) == (8, 11)
+    assert sizes(112) == [3, 3, 2] * 14
+
+
+def test_real_109_pixel_sides():
+    """Measured on Rack5: LED 1 is the bottom of U1, LED 109 the top of U42."""
+    assert unit_range(1, 42, 109) == (0, 3)
+    assert unit_range(42, 42, 109) == (107, 109)
+    assert set(sizes(109)) == {2, 3}
+    assert sizes(109).count(3) == 25
+
+
+@pytest.mark.parametrize("length", [42, 100, 109, 112, 113, 200])
+def test_units_tile_the_whole_side(length):
+    """No gaps, no overlaps, U1 at the bottom and U42 at the very top."""
+    assert unit_range(1, 42, length)[0] == 0
     for u in range(1, 42):
-        assert unit_range(u, PATTERN)[1] == unit_range(u + 1, PATTERN)[0]
+        assert unit_range(u, 42, length)[1] == unit_range(u + 1, 42, length)[0]
+    assert unit_range(42, 42, length)[1] == length
 
 
-def test_42_units_use_112_pixels():
-    assert unit_range(42, PATTERN)[1] == 112
+@pytest.mark.parametrize("length", [109, 112, 113])
+def test_units_differ_by_at_most_one_pixel(length):
+    """Evenly spread: never a 4 next to a 2."""
+    assert max(sizes(length)) - min(sizes(length)) <= 1
 
 
-def test_top_unit():
-    assert unit_range(42, PATTERN) == (110, 112)  # U42 is a 2-pixel U
+def test_one_pixel_per_unit_at_minimum():
+    assert sizes(42) == [1] * 42
 
 
-def test_first_u_pixel_offsets_everything():
-    assert unit_range(1, PATTERN, first_u_pixel=1) == (1, 4)
-    assert unit_range(3, PATTERN, first_u_pixel=1) == (7, 9)
-
-
-def test_u0_is_rejected():
+@pytest.mark.parametrize("u", [0, 43])
+def test_units_outside_the_rack_are_rejected_by_unit_range(u):
     with pytest.raises(ValueError):
-        unit_range(0, PATTERN)
+        unit_range(u, 42, 112)
 
 
 # ---------------------------------------------------------------- runs
@@ -71,8 +85,9 @@ def test_separate_units_stay_separate():
 
 
 def test_run_range_spans_the_whole_run():
-    assert run_range(1, 2, PATTERN) == (0, 6)
-    assert run_range(3, 4, PATTERN) == (6, 11)
+    assert run_range(1, 2, 42, 112) == (0, 6)
+    assert run_range(3, 4, 42, 112) == (6, 11)
+    assert run_range(1, 42, 42, 109) == (0, 109)
 
 
 @pytest.mark.parametrize("units", [[0], [43], [1, 43]])

@@ -7,23 +7,25 @@ from rack_lighting import config_loader
 # Same positions as real WLED: Solid = 0, Breathe = 2, Chase = 28.
 EFFECTS = ["Solid", "Blink", "Breathe"] + [f"FX{i}" for i in range(3, 28)] + ["Chase"]
 
-# Rack1 and Rack2 share a controller (strips cut, 4 sides on one strip);
-# Rack3 has a controller to itself.
+# Rack1 and Rack2 share a controller; Rack3 has a controller to itself.
+# Sides are 112 pixels, which spreads 42 U's as 3, 3, 2, 3, 3, 2, ... Each
+# side B ends where a 113-pixel side would have (226, 452), with one dark
+# pixel (112 or 338) between the sides.
 BASE_INI = """
 [Rack1]
 led-ip = 10.0.0.1
-side-a = 0, 113, up
-side-b = 113, 113, down
+side-a = 0, 112, up
+side-b = 114, 112, down
 
 [Rack2]
 led-ip = 10.0.0.1
-side-a = 226, 113, up
-side-b = 339, 113, down
+side-a = 226, 112, up
+side-b = 340, 112, down
 
 [Rack3]
 led-ip = 10.0.0.3
-side-a = 0, 113, up
-side-b = 113, 113, down
+side-a = 0, 112, up
+side-b = 114, 112, down
 
 [Led-Controller]
 mode = chase
@@ -32,8 +34,6 @@ segments-per-rack = 8
 
 [Units]
 u-count = 42
-pattern = 3, 3, 2
-first-u-pixel = 0
 
 [Idle]
 effect = Chase

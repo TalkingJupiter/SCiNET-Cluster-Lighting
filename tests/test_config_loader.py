@@ -9,7 +9,7 @@ from tests.conftest import BASE_INI
 def test_loads(cfg):
     assert list(cfg.racks) == ["Rack1", "Rack2", "Rack3"]
     assert cfg.mode == "chase"
-    assert cfg.pattern == (3, 3, 2)
+    assert cfg.u_count == 42
     assert cfg.idle.effect == "Chase"
     assert cfg.highlight.effect == "Breathe"
     assert cfg.highlight.speed == 200
@@ -24,8 +24,8 @@ def test_hold_must_be_positive(write_ini):
 
 def test_sides_belong_to_each_rack(cfg):
     a, b = cfg.racks["Rack1"].sides
-    assert (a.start, a.count, a.reverse) == (0, 113, False)
-    assert (b.start, b.stop, b.reverse) == (113, 226, True)
+    assert (a.start, a.count, a.reverse) == (0, 112, False)
+    assert (b.start, b.stop, b.reverse) == (114, 226, True)
     assert cfg.racks["Rack2"].sides[0].start == 226
 
 
@@ -34,7 +34,7 @@ def test_racks_grouped_by_controller(cfg):
 
 
 def test_racks_on_one_controller_must_not_overlap(write_ini):
-    bad = BASE_INI.replace("side-a = 226, 113, up", "side-a = 200, 113, up")
+    bad = BASE_INI.replace("side-a = 226, 112, up", "side-a = 200, 112, up")
     with pytest.raises(ValueError, match="overlap on controller 10.0.0.1"):
         write_ini(bad)
 
@@ -50,14 +50,14 @@ def test_segment_budget_must_fit_the_controller(write_ini):
 
 def test_three_racks_on_one_controller_do_not_fit(write_ini):
     three = BASE_INI.replace("led-ip = 10.0.0.3", "led-ip = 10.0.0.1").replace(
-        "side-a = 0, 113, up\nside-b = 113, 113, down\n\n[Led-Controller]",
-        "side-a = 452, 113, up\nside-b = 565, 113, down\n\n[Led-Controller]")
+        "side-a = 0, 112, up\nside-b = 114, 112, down\n\n[Led-Controller]",
+        "side-a = 452, 112, up\nside-b = 566, 112, down\n\n[Led-Controller]")
     with pytest.raises(ValueError, match="3 racks x 8"):
         write_ini(three)
 
 
 def test_rack_without_sides(write_ini):
-    bad = BASE_INI.replace("side-a = 0, 113, up\nside-b = 113, 113, down\n", "", 1)
+    bad = BASE_INI.replace("side-a = 0, 112, up\nside-b = 114, 112, down\n", "", 1)
     with pytest.raises(ValueError, match="Rack1 needs at least one side"):
         write_ini(bad)
 
@@ -94,23 +94,32 @@ def test_unknown_mode(write_ini):
 
 def test_bad_direction(write_ini):
     with pytest.raises(ValueError, match="direction"):
-        write_ini(side_b="113, 113, sideways")
+        write_ini(side_b="114, 112, sideways")
 
 
 def test_overlapping_sides(write_ini):
     with pytest.raises(ValueError, match="overlap"):
-        write_ini(side_b="100, 113, down")
+        write_ini(side_b="100, 112, down")
 
 
-def test_side_too_short_for_the_units(write_ini):
-    with pytest.raises(ValueError, match="needs 112"):
-        write_ini(side_a="0, 111, up")
+def test_side_needs_a_pixel_per_unit(write_ini):
+    write_ini(side_a="0, 42, up", side_b="114, 42, down")       # 1 per U: fits
+    with pytest.raises(ValueError, match="Rack1 side-a has 41 pixels; 42 U's need at least one each"):
+        write_ini(side_a="0, 41, up", side_b="114, 41, down")
 
 
-def test_first_u_pixel_counts_against_side_length(write_ini):
-    write_ini(first_u_pixel="1")          # 113 = 1 + 112, fits exactly
-    with pytest.raises(ValueError, match="needs 114"):
-        write_ini(first_u_pixel="2")
+def test_sides_of_a_rack_must_be_the_same_length(write_ini):
+    """Otherwise a U would sit at different heights on the two sides."""
+    with pytest.raises(ValueError, match="Rack1: all sides must be the same length"):
+        write_ini(side_a="0, 109, up")
+
+
+@pytest.mark.parametrize("key", ["pattern = 3, 3, 2", "first-u-pixel = 0"])
+def test_old_unit_settings_are_an_error_not_ignored(write_ini, key):
+    """Ignoring them would hide that the U mapping changed under them."""
+    old = BASE_INI.replace("u-count = 42\n", f"u-count = 42\n{key}\n")
+    with pytest.raises(ValueError, match="is no longer used"):
+        write_ini(old)
 
 
 def test_missing_file():

@@ -2,7 +2,7 @@
 
 Test config: min 0, amber from 30, red from 40, max 50 kW over 112 pixels,
 so amber starts at pixel 67 and red at pixel 90. Rack1's side A runs up
-over strip pixels 0-113, side B runs down over 113-226.
+over strip pixels 0-112, side B runs down over 114-226.
 """
 
 from datetime import datetime, timezone
@@ -156,3 +156,15 @@ def test_no_data_blinks_red_over_the_whole_bar(cfg, kw):
 def test_no_data_differs_from_zero_and_from_full(cfg):
     assert meter(cfg, None) != meter(cfg, 0)
     assert meter(cfg, None) != meter(cfg, 50)
+
+
+# ---------------------------------------------------------------- the real racks
+
+def test_full_bar_on_a_real_rack_fills_both_109_led_sides(monkeypatch):
+    """The bar follows the side's length (109 on the real racks), not 112."""
+    from rack_lighting import config_loader
+    monkeypatch.setattr(config_loader, "load_dotenv", lambda: None)
+    real = config_loader.load()
+    segs = kw_meter(real, real.racks["Rack5"], EFFECTS, reading(real.max_kw))
+    assert segs[0]["start"] == 1 and segs[-2]["stop"] == 110, "side A: LED 1 to 109"
+    assert segs[1]["stop"] == 259 and segs[-1]["start"] == 150, "side B: 258 down to 150"

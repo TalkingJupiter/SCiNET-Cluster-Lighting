@@ -17,7 +17,7 @@ No controllers are needed. Settings are in `pyproject.toml`.
 
 | File | Covers |
 |---|---|
-| `test_layout.py` | 3-3-2 pattern, U grouping, side mirroring, parsing `1,2` / `5-8` |
+| `test_layout.py` | Spreading 42 U's over a side (112 → 3-3-2, the real 109), U grouping, side mirroring, parsing `1,2` / `5-8` |
 | `test_modes.py` | Chase and highlight segments, the 4-group limit |
 | `test_kw_meter.py` | kW → bar height, zone colours, clamping, decimals, no data vs 0 kW |
 | `test_meter_lights.py` | Meter mode in `RackLights`: refresh, write-on-change, the 60 s resend, highlights next to meters, the background thread |
