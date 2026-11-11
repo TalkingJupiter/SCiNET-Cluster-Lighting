@@ -60,8 +60,6 @@ class Config:
     segments_per_rack: int
     controllers: dict           # led ip -> rack names, in config order
     u_count: int
-    pattern: tuple
-    first_u_pixel: int
     idle: Style
     highlight: Style
     highlight_hold_s: float     # a highlight returns to idle after this long
@@ -147,11 +145,16 @@ def load(path=CONFIG_PATH):
     power_ingest_token = os.environ.get("power_ingest_token") or None
     units = config["Units"]
     u_count = units.getint("u-count")
-    pattern = _ints(units["pattern"])
-    first_u_pixel = units.getint("first-u-pixel", 0)
-    if not pattern or min(pattern) < 1:
-        raise ValueError("pattern must be a list of positive pixel counts")
-    used = first_u_pixel + sum(pattern[i % len(pattern)] for i in range(u_count))
+    if u_count < 1:
+        raise ValueError("[Units] u-count must be at least 1")
+    for old in ("pattern", "first-u-pixel"):
+        # Silently ignoring these would hide that the U mapping changed.
+        if old in units:
+            raise ValueError(
+                f"[Units] {old} is no longer used: U's are spread evenly over "
+                f"each side's length. Remove it, and set each side's length to "
+                f"the LEDs alongside U1-U{u_count}."
+            )
 
     controller = config["Led-Controller"]
 
@@ -202,11 +205,17 @@ def load(path=CONFIG_PATH):
         if len(sides) > segments_per_rack:
             raise ValueError(f"{name} has more sides than segments-per-rack")
         for side in sides:
-            if used > side.count:
+            if side.count < u_count:
                 raise ValueError(
-                    f"{side.name} has {side.count} pixels but {u_count}U of "
-                    f"{list(pattern)} starting at {first_u_pixel} needs {used}"
+                    f"{side.name} has {side.count} pixels; {u_count} U's need "
+                    f"at least one each"
                 )
+        # U's must line up across sides, and modes use one length per rack.
+        if len({side.count for side in sides}) > 1:
+            raise ValueError(
+                f"{name}: all sides must be the same length, got "
+                f"{', '.join(f'{s.name} {s.count}' for s in sides)}"
+            )
 
         rack = Rack(
             name=name,
@@ -242,8 +251,6 @@ def load(path=CONFIG_PATH):
         segments_per_rack=segments_per_rack,
         controllers={ip: tuple(names) for ip, names in controllers.items()},
         u_count=u_count,
-        pattern=pattern,
-        first_u_pixel=first_u_pixel,
         idle=_style(config["Idle"]),
         highlight=_style(config["Highlight"]),
         highlight_hold_s=highlight_hold_s,

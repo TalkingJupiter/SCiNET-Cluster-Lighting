@@ -30,7 +30,7 @@ def highlight_node(cfg, rack, effects, units):
     runs = unit_groups(cfg, rack, units)
     segments = []
     for first, last in runs:
-        lo, hi = run_range(first, last, cfg.pattern, cfg.first_u_pixel)
+        lo, hi = run_range(first, last, cfg.u_count, rack.sides[0].count)
         for side in rack.sides:
             start, stop = to_strip(side, lo, hi)
             segments.append(segment(start, stop, cfg.highlight, effects))

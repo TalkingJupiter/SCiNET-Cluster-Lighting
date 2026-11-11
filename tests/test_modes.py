@@ -25,7 +25,7 @@ def test_unknown_effect_is_an_error():
 
 def test_idle_runs_chase_on_both_sides(cfg):
     segs = default_animation(cfg, cfg.racks["Rack1"], EFFECTS)
-    assert spans(segs) == [(0, 113), (113, 226)]
+    assert spans(segs) == [(0, 112), (114, 226)]
     assert all(s["fx"] == 28 and s["on"] for s in segs)
 
 
@@ -42,11 +42,11 @@ def test_idle_uses_configured_style(cfg):
 
 def test_idle_second_rack_on_a_shared_controller(cfg):
     segs = default_animation(cfg, cfg.racks["Rack2"], EFFECTS)
-    assert spans(segs) == [(226, 339), (339, 452)]
+    assert spans(segs) == [(226, 338), (340, 452)]
 
 
 def test_idle_with_one_side(write_ini):
-    cfg = write_ini(BASE_INI.replace("side-b = 113, 113, down\n", "", 1))
+    cfg = write_ini(BASE_INI.replace("side-b = 114, 112, down\n", "", 1))
     assert len(default_animation(cfg, cfg.racks["Rack1"], EFFECTS)) == 1
 
 
@@ -115,3 +115,46 @@ def test_highlight_nothing_is_an_error(cfg):
 def test_highlight_bad_unit(cfg):
     with pytest.raises(ValueError, match="outside"):
         highlight_node(cfg, cfg.racks["Rack1"], EFFECTS, [43])
+
+
+# ---------------------------------------------------------------- the real racks
+
+# Measured on Rack5 on 2026-11-11, in LEDs from the start of its strip:
+# 259-LED strips; LED 1 is the bottom of U1 and LED 109 the top of U42 on
+# side A; side B runs down 150-258.
+MEASURED = {
+    1: ((1, 4), (256, 259)),        # bottom: LED 1, and the strip's last LED
+    42: ((108, 110), (150, 152)),   # top: LED 109, and side B's first
+}
+FIRST_RACKS = ["Rack1", "Rack3", "Rack5", "Rack7"]
+SECOND_RACKS = ["Rack2", "Rack4", "Rack6", "Rack8"]
+
+
+def strip_offset(cfg, rack):
+    """Where this rack's strip starts on its controller (LED 0 is hidden, so
+    side A starts one after it): 0 for output 1. For output 2 it is wherever
+    WLED's output 2 starts: 300 while WLED is still set to 300 + 300, 259
+    once it's changed to 259 + 259 (see the note in config.ini)."""
+    return cfg.racks[rack].sides[0].start - 1
+
+
+@pytest.mark.parametrize("rack", FIRST_RACKS + SECOND_RACKS)
+@pytest.mark.parametrize("u", [1, 42])
+def test_real_config_puts_u1_and_u42_where_measured(monkeypatch, rack, u):
+    from rack_lighting import config_loader
+    monkeypatch.setattr(config_loader, "load_dotenv", lambda: None)
+    cfg = config_loader.load()
+    off = strip_offset(cfg, rack)
+    a, b = highlight_node(cfg, cfg.racks[rack], EFFECTS, [u])
+    side_a, side_b = MEASURED[u]
+    assert (a["start"] - off, a["stop"] - off) == side_a
+    assert (b["start"] - off, b["stop"] - off) == side_b
+
+
+def test_real_second_strip_starts_after_the_first(monkeypatch):
+    """Output 2 can't start inside the first strip's 259 LEDs."""
+    from rack_lighting import config_loader
+    monkeypatch.setattr(config_loader, "load_dotenv", lambda: None)
+    cfg = config_loader.load()
+    for rack in SECOND_RACKS:
+        assert strip_offset(cfg, rack) >= 259

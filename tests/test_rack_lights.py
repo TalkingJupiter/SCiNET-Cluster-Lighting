@@ -59,8 +59,8 @@ def test_idle_all_writes_each_controller_once(lights):
 def test_idle_shared_controller_chases_both_racks(lights):
     lights.idle_all()
     assert spans(last(lights, "10.0.0.1")) == [
-        (0, 113, CHASE), (113, 226, CHASE),       # Rack1
-        (226, 339, CHASE), (339, 452, CHASE),     # Rack2
+        (0, 112, CHASE), (114, 226, CHASE),       # Rack1
+        (226, 338, CHASE), (340, 452, CHASE),     # Rack2
     ]
 
 
@@ -70,7 +70,7 @@ def test_highlight_keeps_the_neighbour_chasing(lights):
     lights.highlight("Rack1", [1, 2])
     assert spans(last(lights, "10.0.0.1")) == [
         (0, 6, BREATHE), (220, 226, BREATHE),     # Rack1: U1-U2 only
-        (226, 339, CHASE), (339, 452, CHASE),     # Rack2 untouched
+        (226, 338, CHASE), (340, 452, CHASE),     # Rack2 untouched
     ]
 
 
@@ -88,7 +88,7 @@ def test_clearing_one_rack_leaves_the_other_highlighted(lights):
     lights.highlight("Rack2", [3])
     lights.idle("Rack1")
     assert spans(last(lights, "10.0.0.1")) == [
-        (0, 113, CHASE), (113, 226, CHASE),
+        (0, 112, CHASE), (114, 226, CHASE),
         (232, 234, BREATHE), (444, 446, BREATHE),
     ]
 
@@ -164,7 +164,7 @@ def test_highlight_returns_to_idle_when_the_hold_expires(lights, timers):
     lights.highlight("Rack3", [4])
     assert spans(last(lights, "10.0.0.3"))[0][2] == BREATHE
     timers.fire_all()
-    assert spans(last(lights, "10.0.0.3")) == [(0, 113, CHASE), (113, 226, CHASE)]
+    assert spans(last(lights, "10.0.0.3")) == [(0, 112, CHASE), (114, 226, CHASE)]
     assert lights.showing["Rack3"] == ()
 
 

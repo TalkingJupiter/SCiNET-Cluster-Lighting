@@ -1,8 +1,8 @@
 """RackLights in meter mode: idle racks show their kW meter, refreshed from
 the power store, and a controller is only written when its state changes.
 
-Test config: Rack1 (sides 0-113 up, 113-226 down) and Rack2 (226-339 up,
-339-452 down) share 10.0.0.1; Rack3 is alone on 10.0.0.3. 25 kW lights 56
+Test config: Rack1 (sides 0-112 up, 114-226 down) and Rack2 (226-338 up,
+340-452 down) share 10.0.0.1; Rack3 is alone on 10.0.0.3. 25 kW lights 56
 of 112 pixels.
 """
 

@@ -78,13 +78,15 @@ def test_expected_led_count_is_the_end_of_the_last_side(cfg):
 
 
 def test_expected_led_count_in_the_real_config(monkeypatch):
-    """Paired racks end at pixel 602, a DNOC rack alone at 301."""
+    """259-LED strips: a controller's count ends where its last strip does, at
+    output 2's start + 259 (518 once WLED is set to 259 + 259; 559 while it
+    is still 300 + 300), and a DNOC rack alone at 259."""
     monkeypatch.setattr(config_loader, "load_dotenv", lambda: None)
     cfg = config_loader.load()
-    counts = {ip: expected_led_count(cfg, ip) for ip in cfg.controllers}
-    assert counts["140.221.240.5"] == 602
-    assert counts["140.221.240.9"] == 301
-    assert set(counts.values()) == {602, 301}
+    for ip, names in cfg.controllers.items():
+        second_strip = cfg.racks[names[-1]].sides[0].start - 1
+        assert expected_led_count(cfg, ip) == second_strip + 259
+    assert expected_led_count(cfg, "140.221.240.9") == 259
 
 
 def c(reachable, mismatch=False):
