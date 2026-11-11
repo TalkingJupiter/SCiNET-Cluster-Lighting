@@ -15,8 +15,8 @@ Any section with a `led-ip` or a `side-*` key is a rack, whatever its name:
 ```ini
 [Rack1]
 led-ip = 10.10.1.1
-side-a = 0, 113, up
-side-b = 113, 113, down
+side-a = 1, 109, up
+side-b = 150, 109, down
 ```
 
 | Key | Meaning |
@@ -34,7 +34,8 @@ Checked at load:
 - every rack has a `led-ip` (a section with sides but no `led-ip`, e.g. a
   typo like `led_ip`, stops startup rather than silently losing the rack)
 - every rack has at least one side
-- every side is long enough for all 42 U's
+- every side has at least one LED per U (42)
+- all sides of a rack are the same length, so U's line up across sides
 - sides of racks on the same controller don't overlap
 
 ## `[Led-Controller]`
@@ -43,7 +44,7 @@ Checked at load:
 |---|---|---|
 | `mode` | — | What an idle rack shows: `chase`, or `meter` for the [kW meter](#meter). Highlights work the same in both. |
 | `connection-type` | `""` | Read but not used yet. |
-| `max-segments` | `16` | WLED segment slots per controller. 16 is the ESP8266 limit. |
+| `max-segments` | `16` | WLED segment slots per controller. The ESP32 controllers have 32; 16 is the ESP8266 limit. |
 | `segments-per-rack` | `8` | Each rack's share, so one rack's highlight can't take its neighbour's segments. |
 
 Checked at load: racks on a controller × `segments-per-rack` ≤ `max-segments`.
@@ -53,8 +54,11 @@ Checked at load: racks on a controller × `segments-per-rack` ≤ `max-segments`
 | Key | Default | Meaning |
 |---|---|---|
 | `u-count` | — | Rack units per rack (42). |
-| `pattern` | — | Pixels per U, repeating from U1: `3, 3, 2`. |
-| `first-u-pixel` | `0` | Pixel within a side, counted from the bottom, where U1 starts. |
+
+The U's are spread evenly over each side's length (3 or 2 LEDs each on a
+109-LED side); there is no pattern to set. `pattern` and `first-u-pixel`
+are no longer used, and the loader stops with an error if either is still
+in the file, so an old config can't silently change where U's land.
 
 ## `[Idle]` and `[Highlight]`
 

@@ -131,8 +131,8 @@ polled, each controller sees at most one small GET every 5 seconds.
 The refresh's own failures aren't enough to tell whether a controller is
 up: in chase mode it only writes once a minute.
 
-A check takes the controller's lock, like a write. The ESP8266 handles only
-a few connections at once, and WLED builds every JSON reply in one shared
+A check takes the controller's lock, like a write. The controllers (ESP32;
+an ESP8266 even more so) handle only a few connections at once, and WLED builds every JSON reply in one shared
 buffer, answering "busy" to a request that arrives while it's in use. A
 check landing in the middle of a highlight could make the highlight fail.
 A check that can't get the lock within 1.5 s gives up and reports the

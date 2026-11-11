@@ -220,8 +220,8 @@ Shortened to two controllers, one of them unreachable:
       "reachable": true,
       "racks": ["Rack1", "Rack2"],
       "wled_version": "0.15.0",
-      "led_count": 602,
-      "expected_led_count": 602,
+      "led_count": 518,
+      "expected_led_count": 518,
       "led_count_mismatch": false,
       "uptime_s": 84211,
       "reboots": 0,
@@ -233,7 +233,7 @@ Shortened to two controllers, one of them unreachable:
       "racks": ["DNOC646"],
       "wled_version": null,
       "led_count": null,
-      "expected_led_count": 301,
+      "expected_led_count": 259,
       "led_count_mismatch": null,
       "uptime_s": null,
       "reboots": 0,
@@ -264,7 +264,7 @@ A monitor can alert on the `503`; `degraded` is for a person to look at.
 | `racks` | The racks the config puts on it |
 | `wled_version` | WLED's `ver`. `null` if unreachable |
 | `led_count` | WLED's `leds.count`: how many LEDs the controller is set up for. `null` if unreachable |
-| `expected_led_count` | The end of the last configured side on this controller (602 for two racks, 301 for one) |
+| `expected_led_count` | The end of the last configured side on this controller (518 for two racks, 259 for one) |
 | `led_count_mismatch` | `true` if the two differ: the config and the controller disagree, usually a bring-up mistake (wrong LED count in WLED's LED settings, or wrong `side-*` values). `null` if unreachable |
 | `uptime_s` | Seconds since the controller booted. `null` if unreachable |
 | `reboots` | Reboots noticed since the API started (uptime went down between two checks) |
