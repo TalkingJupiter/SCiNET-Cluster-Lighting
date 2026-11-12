@@ -8,8 +8,9 @@ Interactive docs are served at `/docs` while it runs.
 
 On startup every rack is set to idle: the chase, or the kW meter when
 `mode = meter`. A controller that can't be reached is logged and skipped;
-the API starts anyway, and a background refresh keeps trying it every
-2 seconds.
+the API starts anyway, and a background refresh tries it again every
+30 seconds. Controllers are written in parallel, so dead ones don't slow
+startup or the others down.
 
 The front end can only request highlights. **There is no idle endpoint**:
 every highlight returns to idle on its own after `hold-seconds`

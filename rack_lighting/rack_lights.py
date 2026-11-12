@@ -20,11 +20,18 @@ it every couple of seconds on a background thread.
 A controller that loses power forgets its segments, and we'd never notice:
 nothing changed on our side. So `refresh()` also resends each controller's
 state at least every RESEND_S seconds, in either mode.
+
+Startup and every refresh talk to all controllers at once, one thread each,
+so a dead controller costs one timeout in total instead of one per dead
+controller, and never delays the live ones. A controller that failed is left
+alone for RETRY_DOWN_S before it's tried again, and rewritten in full as soon
+as it answers, since it has probably rebooted.
 """
 
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from .clients.wled_client import WLEDClient
 from .modes.animate import default_animation
@@ -37,6 +44,7 @@ log = logging.getLogger(__name__)
 IDLE = ()
 METER_REFRESH_S = 2.0
 RESEND_S = 60.0
+RETRY_DOWN_S = 30.0
 
 
 def controller_state(segment_lists, max_segments):
@@ -84,7 +92,10 @@ class RackLights:
         # skip writes that would change nothing (until a resend is due).
         self._sent = {}
         self._sent_at = {}
+        # Controllers whose last write failed, and when refresh() may try
+        # each one again.
         self._unreachable = set()
+        self._retry_at = {}
 
     def _rack(self, name):
         if name not in self.cfg.racks:
@@ -120,10 +131,45 @@ class RackLights:
         client.set_state(state)
         self._sent[ip] = state
         self._sent_at[ip] = self._clock()
+        self._retry_at.pop(ip, None)       # it answered: no need to wait
         self.showing.update(changes)
 
     def _resend_due(self, ip):
         return self._clock() - self._sent_at[ip] >= RESEND_S
+
+    def _each_controller(self, fn, ips):
+        """Run fn(ip) for every ip at once. Returns {ip: OSError or None}.
+
+        fn takes its own controller's lock, and each controller has its own,
+        so they can't interfere. Any other exception is a bug and is raised.
+        """
+        ips = list(ips)
+        if not ips:
+            return {}
+
+        def run(ip):
+            try:
+                fn(ip)
+            except OSError as exc:
+                return exc
+            return None
+
+        with ThreadPoolExecutor(max_workers=len(ips), thread_name_prefix="controller") as pool:
+            return dict(zip(ips, pool.map(run, ips)))
+
+    def _record(self, results):
+        """Log controllers that went down or came back; back off the dead ones.
+        Called on one thread, after _each_controller()."""
+        now = self._clock()
+        for ip, exc in results.items():
+            if exc is not None:
+                self._retry_at[ip] = now + RETRY_DOWN_S
+                if ip not in self._unreachable:     # log once, not every tick
+                    log.warning("controller %s unreachable: %s", ip, exc)
+                self._unreachable.add(ip)
+            elif ip in self._unreachable:
+                log.info("controller %s reachable again", ip)
+                self._unreachable.discard(ip)
 
     # ------------------------------------------------------------ idle
 
@@ -134,20 +180,19 @@ class RackLights:
             self._write(rack.led_ip, {name: IDLE})
 
     def idle_all(self):
-        """Every rack to idle. A controller that is down is logged and
-        skipped, so one dead controller doesn't keep the rest dark.
-        Returns the controller IPs that failed."""
-        failed = []
-        for ip, names in self.cfg.controllers.items():
-            try:
-                with self.locks[ip]:
-                    for name in names:
-                        self._generation[name] += 1
-                    self._write(ip, {name: IDLE for name in names})
-            except OSError as exc:
-                log.warning("controller %s unreachable: %s", ip, exc)
-                failed.append(ip)
-        return failed
+        """Every rack to idle, all controllers at once. A controller that is
+        down is logged and skipped, so one dead controller doesn't keep the
+        rest dark or slow them down. Returns the controller IPs that failed."""
+        def reset(ip):
+            names = self.cfg.controllers[ip]
+            with self.locks[ip]:
+                for name in names:
+                    self._generation[name] += 1
+                self._write(ip, {name: IDLE for name in names})
+
+        results = self._each_controller(reset, self.cfg.controllers)
+        self._record(results)
+        return [ip for ip, exc in results.items() if exc is not None]
 
     # ------------------------------------------------------------ highlight
 
@@ -204,28 +249,33 @@ class RackLights:
     # ------------------------------------------------------------ meter
 
     def refresh(self):
-        """Redraw idle racks' meters from the latest readings.
+        """Redraw idle racks' meters from the latest readings, all
+        controllers at once.
 
         A controller is written only if its state changed, or if RESEND_S
         has passed since its last write (in case it rebooted). Highlighted
         racks keep their highlight. In chase mode nothing ever changes, so
-        this only resends. A controller that is down is skipped and retried
-        next time. Returns the controller IPs that failed.
+        this only resends.
+
+        A controller that failed is skipped (no network call) until
+        RETRY_DOWN_S after the failure, then tried again; when it answers,
+        it gets its full state even if nothing changed, because it has most
+        likely rebooted. Returns the controller IPs that are down, including
+        the skipped ones.
         """
-        failed = []
-        for ip in self.cfg.controllers:
-            try:
-                with self.locks[ip]:
-                    self._write(ip, {}, only_if_changed=True)
-            except OSError as exc:
-                failed.append(ip)
-                if ip not in self._unreachable:     # log once, not every tick
-                    log.warning("controller %s unreachable: %s", ip, exc)
-                continue
-            if ip in self._unreachable:
-                log.info("controller %s reachable again", ip)
-        self._unreachable = set(failed)
-        return failed
+        now = self._clock()
+        waiting = {ip for ip, at in self._retry_at.items() if now < at}
+        recovering = set(self._unreachable)
+
+        def redraw(ip):
+            with self.locks[ip]:
+                self._write(ip, {}, only_if_changed=ip not in recovering)
+
+        results = self._each_controller(
+            redraw, [ip for ip in self.cfg.controllers if ip not in waiting]
+        )
+        self._record(results)
+        return [ip for ip in self.cfg.controllers if ip in self._unreachable]
 
     def run_meter(self, stop, interval=METER_REFRESH_S):
         """Call refresh() every `interval` seconds until `stop` (an Event) is set."""
