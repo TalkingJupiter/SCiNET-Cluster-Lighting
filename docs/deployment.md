@@ -36,9 +36,13 @@ There are two ways to run it:
 ```bash
 git clone https://github.com/TalkingJupiter/SCiNET-Cluster-Lighting.git
 cd SCiNET-Cluster-Lighting
+git checkout v1.0.0            # the latest release; see the GitHub releases page
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
+
+Installing a release tag rather than `main` means the Pi runs exactly what
+was tested and released, and `config.ini` stays as it was at that release.
 
 **The token.** Create `.env` from the example and set `power_ingest_token`:
 
@@ -185,13 +189,20 @@ sudo systemctl start rack-lighting
 
 ## Update
 
+To move to a newer release (replace `v1.0.1` with its tag):
+
 ```bash
 cd ~/SCiNET-Cluster-Lighting
-git pull
+git fetch --tags
+git checkout v1.0.1
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m rack_lighting          # config still loads?
 sudo systemctl restart rack-lighting       # or Ctrl-C and start it again by hand
 ```
+
+If you changed `config.ini` on the Pi, `git checkout` refuses to overwrite
+it: commit the change to the repo first (so it's in the next release), or
+`git stash` it and re-apply it after.
 
 A restart sets every rack back to idle, so a highlight in progress ends
 early.
@@ -246,11 +257,11 @@ once the last readings are older than `stale-after-seconds`.
 
 ## Go-live checklist
 
-- [ ] Every controller set up as in [hardware: WLED settings](hardware.md#wled-settings)
-- [ ] Bring-up done on at least one paired controller ([hardware](hardware.md#first-bring-up))
+- [ ] Every controller set up as in [hardware: WLED settings](hardware.md#wled-settings), output 2 starting at 259 on the paired ones
+- [ ] U1, U21 and U42 in the right place on every rack, the second racks included: `scripts/simulate_highlights.py --pattern climb` ([hardware](hardware.md#first-bring-up))
 - [ ] `python -m rack_lighting` lists all 14 racks
 - [ ] `/status` is `ok`: every controller reachable, no LED count mismatch
-- [ ] `.env` has the real token (`chmod 600`), and DevOps has it and [`docs/api.md`](api.md)
+- [ ] `.env` has a real, generated token, not a placeholder like `test` (`chmod 600`), and DevOps has it and [`docs/api.md`](api.md)
 - [ ] The front end can reach `http://<pi>:8000`. A browser page served from another origin also needs CORS ([not enabled yet](api.md#not-yet))
 - [ ] `mode` chosen in `config.ini`: `chase`, or `meter` once DevOps is pushing readings (otherwise every rack blinks red)
 - [ ] Running under systemd and enabled, and survives `sudo reboot`

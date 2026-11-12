@@ -161,7 +161,7 @@ resend already does that.
 
 | Situation | What happens |
 |---|---|
-| Controller down at startup | Logged and skipped; the API starts anyway |
+| Controller down at startup | Logged and skipped; the API starts anyway, without waiting on it (controllers are written in parallel). Retried after 30 s |
 | Controller down on a highlight | `502`; nothing changes, no timer starts |
 | Controller down when a hold expires | Retries every `hold-seconds` |
 | Controller down during the meter refresh | Logged once and left alone for 30 s, then retried; the others keep refreshing every 2 s. When it answers again it's logged and rewritten in full |

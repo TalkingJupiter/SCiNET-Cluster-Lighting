@@ -220,7 +220,7 @@ Shortened to two controllers, one of them unreachable:
     "140.221.240.5": {
       "reachable": true,
       "racks": ["Rack1", "Rack2"],
-      "wled_version": "0.15.0",
+      "wled_version": "16.0.1",
       "led_count": 518,
       "expected_led_count": 518,
       "led_count_mismatch": false,

@@ -20,7 +20,7 @@ No controllers are needed. Settings are in `pyproject.toml`.
 | `test_layout.py` | Spreading 42 U's over a side (112 → 3-3-2, the real 109), U grouping, side mirroring, parsing `1,2` / `5-8` |
 | `test_modes.py` | Chase and highlight segments, the 4-group limit |
 | `test_kw_meter.py` | kW → bar height, zone colours, clamping, decimals, no data vs 0 kW |
-| `test_meter_lights.py` | Meter mode in `RackLights`: refresh, write-on-change, the 60 s resend, highlights next to meters, the background thread |
+| `test_meter_lights.py` | Meter mode in `RackLights`: refresh, write-on-change, the 60 s resend, highlights next to meters, the background thread; writing controllers in parallel, the 30 s backoff for dead ones, rewriting one that comes back |
 | `test_rack_lights.py` | Shared controllers, segment numbering, the hold timer and its races, retries |
 | `test_api.py` | Highlight endpoints, status codes, startup |
 | `test_power.py` | The power store: ignoring older readings, going stale |
@@ -38,6 +38,14 @@ the same branch cancels the run still in progress.
 
 A new test dependency has to go in `requirements.txt`, or CI fails even when
 the tests pass locally.
+
+### Against a running server
+
+The suite never touches hardware. To try a running server, real racks
+included, use the scripts in `scripts/` (`try_api.sh`,
+`simulate_highlights.py`, `simulate_power.py`); see
+[deployment: test scripts](deployment.md#test-scripts). They change the real
+LEDs, so check nobody minds first.
 
 ### Test doubles (`tests/conftest.py`)
 

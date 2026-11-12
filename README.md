@@ -43,11 +43,20 @@ Run the API for the front end:
 curl -X POST localhost:8000/racks/Rack1/highlight -H 'content-type: application/json' -d '{"units": [1, 2]}'
 ```
 
+Try a running server, real racks included (see [test scripts](docs/deployment.md#test-scripts)):
+
+```bash
+scripts/try_api.sh Rack3
+```
+
 Run the tests (no controllers needed):
 
 ```bash
 .venv/bin/python -m pytest
 ```
+
+On the Pi, install a [release](https://github.com/TalkingJupiter/SCiNET-Cluster-Lighting/releases)
+(`git checkout v1.0.0`) rather than `main`; see [deployment](docs/deployment.md).
 
 ## Project layout
 
@@ -61,12 +70,14 @@ rack_lighting/
   layout.py                    rack unit -> LED pixel mapping
   rack_lights.py               what each rack shows; hold timer; meter refresh
   power.py                     latest pushed power reading per rack
+  status.py                    controller checks for GET /status
   clients/wled_client.py       WLED JSON API client
   modes/
     animate.py                 idle chase
     highlight.py               U highlight
     kw_meter.py                kW meter: reading -> coloured bar
 tests/                         pytest suite, runs without hardware
+scripts/                       try a running server; simulate the front end and DevOps
 docs/                          detailed documentation
 ```
 
@@ -83,17 +94,18 @@ docs/                          detailed documentation
 
 ## Status
 
+Latest release: [v1.0.0](https://github.com/TalkingJupiter/SCiNET-Cluster-Lighting/releases/tag/v1.0.0).
+
 | Feature | State |
 |---|---|
-| Idle chase | Done |
-| U highlight with 5 s hold | Done |
-| HTTP API | Done |
-| Power readings pushed by DevOps (`PUT`/`GET /racks/{rack}/power`) | Done; DevOps doesn't have the token yet, so no readings arrive |
-| kW meter | Done, but **off**: `config.ini` has `mode = chase`. Switch after hardware bring-up |
-| All 14 racks in `config.ini` (incl. DNOC) | Done |
-| Layout | Measured on Rack5: one uncut 259-LED strip per rack, 109 LEDs per side; Rack1–8 two per controller, DNOC racks one each ([hardware](docs/hardware.md)). Other racks still to check |
-| Tested on a real controller | **Not yet** |
-| Health and status endpoints (`/health`, `/status`) | Done |
+| Idle chase | Done; tested on Rack1–8 |
+| U highlight with 5 s hold | Done; tested on Rack1–8 |
+| HTTP API, `/health`, `/status` | Done; all endpoints tested against the real controllers (`scripts/try_api.sh`) |
+| Power readings pushed by DevOps (`PUT`/`GET /racks/{rack}/power`) | Done; DevOps doesn't have the token yet, so no real readings arrive |
+| kW meter | Done and tested on the racks with simulated readings, but **off**: `config.ini` has `mode = chase`. Switch once DevOps is sending readings |
+| Layout | Measured on Rack5: one uncut 259-LED strip per rack, 109 LEDs per side ([hardware](docs/hardware.md)). U1/U21/U42 checked on Rack1–8 with WLED's old 300 + 300 outputs |
+| Second racks (Rack2/4/6/8) at +259 | **To check** after WLED's outputs were changed on site: `/status` reports 520 LEDs, the config expects 518. Confirm output 2 starts at 259 ([hardware: WLED settings](docs/hardware.md#wled-settings)) |
+| DNOC racks | In `config.ini` with the same layout; **not measured**, controllers not reachable yet |
 | Running on the Pi | Documented ([deployment](docs/deployment.md)); no Pi yet |
 | How a highlight ends (#13) | To decide: auto-return (built), solid phase, or kiosk reset |
 
