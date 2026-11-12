@@ -114,12 +114,26 @@ shows. What the process believes and what the LEDs show don't drift apart.
 
 Most refreshes change nothing, so the refresh only writes a controller
 whose state differs from the last one it accepted. A failed write isn't
-recorded, so the next refresh tries again.
+recorded, so it's tried again later.
 
 A controller that loses power comes back with WLED's defaults and has no
 way to tell us. So each controller's state is also resent at least every
 60 seconds, even if nothing changed. This runs in chase mode too, where
 it's the only thing the refresh does.
+
+### Controllers are written in parallel, and dead ones are left alone
+
+Startup and every refresh write all controllers at once, one thread each;
+each has its own lock, so they can't interfere. One pass then takes as long
+as the slowest controller, not the sum of them all. Done one after another,
+six unreachable DNOC controllers at 3 s each made every pass take about 18 s,
+so the meter on the live racks updated every 20 s instead of every 2 s.
+
+A controller whose write failed is skipped for 30 seconds (no request, no
+timeout) before it's tried again, and a highlight that reaches it ends the
+wait early. When it answers again it gets its full state even if nothing
+changed on our side, because it has most likely rebooted and lost its
+segments.
 
 ### Status checks are on demand, cached, and take the controller lock
 
@@ -150,7 +164,7 @@ resend already does that.
 | Controller down at startup | Logged and skipped; the API starts anyway |
 | Controller down on a highlight | `502`; nothing changes, no timer starts |
 | Controller down when a hold expires | Retries every `hold-seconds` |
-| Controller down during the meter refresh | Logged once, skipped, retried every 2 s; logged again when it's back |
+| Controller down during the meter refresh | Logged once and left alone for 30 s, then retried; the others keep refreshing every 2 s. When it answers again it's logged and rewritten in full |
 | Controller rebooted (lost its segments) | Back to the right state within 60 s; `/status` counts it in `reboots` |
 | Controller unreachable | `/status` shows it with `last_error` and says `degraded`, or `down` (`503`) if none are reachable; `/health` still answers `200` |
 | WLED's LED count differs from the config | `/status` sets `led_count_mismatch` and says `degraded` |
