@@ -220,6 +220,30 @@ curl localhost:8000/status
 
 See the [API](api.md#get-status) for every field.
 
+## Test scripts
+
+Four scripts in `scripts/` drive a **running** server over HTTP, the way the
+front end and DevOps will. They change the real racks, so start the server
+first and make sure nobody minds the lights changing. Each takes `--base
+http://<host>:8000` for a server other than this machine, and `--help`.
+
+| Script | What it does |
+|---|---|
+| `scripts/try_api.sh [rack]` | Tries every endpoint once and prints PASS/FAIL: health, status (with each controller's LED count), a U1/U21/U42 highlight, the error cases, and a power push with the token from `.env` |
+| `scripts/simulate_highlights.py` | Acts like the front end: sends highlights every few seconds. `--pattern climb` puts the same U on every rack, one higher each step, which checks the U mapping on all racks at once |
+| `scripts/simulate_power.py` | Acts like DevOps: pushes changing kW readings (`--pattern wave`, `sweep`, `random` or `steady`). Needs `mode = meter` to show. `--highlights random` adds highlights on top |
+| `scripts/simlib.py` | Shared code for the two simulators |
+
+```bash
+scripts/try_api.sh Rack3
+.venv/bin/python scripts/simulate_highlights.py --racks Rack1,Rack2 --pattern climb --every 1
+.venv/bin/python scripts/simulate_power.py --racks Rack1,Rack2 --pattern sweep --highlights random
+```
+
+The token is read from `.env` exactly as the server reads it, and never
+printed. When `simulate_power.py` stops, the racks go back to blinking red
+once the last readings are older than `stale-after-seconds`.
+
 ## Go-live checklist
 
 - [ ] Every controller set up as in [hardware: WLED settings](hardware.md#wled-settings)
