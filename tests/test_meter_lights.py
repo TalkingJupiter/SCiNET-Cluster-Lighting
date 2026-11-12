@@ -6,13 +6,14 @@ Test config: Rack1 (sides 0-112 up, 114-226 down) and Rack2 (226-338 up,
 of 112 pixels.
 """
 
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from rack_lighting.power import PowerStore
-from rack_lighting.rack_lights import RESEND_S, RackLights
+from rack_lighting.rack_lights import RESEND_S, RETRY_DOWN_S, RackLights
 from tests.conftest import FakeClient, FakeClock, FakeTimers
 
 SOLID, BLINK, BREATHE, CHASE = 0, 1, 2, 28
@@ -202,14 +203,14 @@ def test_highlight_counts_as_a_write_for_resend(lights, clock):
     assert len(writes(lights)) == 2
 
 
-def test_failed_resend_is_tried_again_next_tick(lights, clock):
+def test_failed_resend_is_tried_again_after_the_backoff(lights, clock):
     lights.idle_all()
     real = lights.clients[SHARED].set_state
     lights.clients[SHARED].set_state = unreachable
     clock.now = RESEND_S
     assert lights.refresh() == [SHARED]
     lights.clients[SHARED].set_state = real
-    clock.now = RESEND_S + 2
+    clock.now = RESEND_S + RETRY_DOWN_S
     assert lights.refresh() == []
     assert len(writes(lights)) == 2
 
@@ -280,7 +281,7 @@ def test_refresh_skips_a_dead_controller(lights, push):
     assert spans(lights, ALONE) == GREEN_25_RACK1
 
 
-def test_refresh_retries_a_failed_write(lights, push):
+def test_refresh_retries_a_failed_write(lights, push, clock):
     lights.idle_all()
     real = lights.clients[SHARED].set_state
     lights.clients[SHARED].set_state = unreachable
@@ -288,14 +289,158 @@ def test_refresh_retries_a_failed_write(lights, push):
     lights.refresh()
 
     lights.clients[SHARED].set_state = real
+    clock.now = RETRY_DOWN_S
+    push("Rack1", 25)                               # still being pushed
     assert lights.refresh() == []
     assert spans(lights) == GREEN_25_RACK1 + NO_DATA_RACK2
 
 
-def test_dead_controller_is_logged_once_not_every_tick(lights, caplog):
-    lights.clients[SHARED].set_state = unreachable
-    for _ in range(3):
+# ---------------------------------------------------------------- dead controllers
+
+class Calls:
+    """Counts set_state calls on one controller, failing while `down`."""
+
+    def __init__(self, lights, ip):
+        self.n = 0
+        self.down = True
+        self.real = lights.clients[ip].set_state
+        lights.clients[ip].set_state = self
+
+    def __call__(self, state):
+        self.n += 1
+        if self.down:
+            raise OSError("timed out")
+        self.real(state)
+
+
+def test_a_dead_controller_is_left_alone_during_the_backoff(lights, clock):
+    """No 3 s timeout on every tick: it's skipped, still reported as down."""
+    calls = Calls(lights, SHARED)
+    lights.idle_all()
+    assert calls.n == 1
+    for t in (2, 4, RETRY_DOWN_S - 1):
+        clock.now = t
+        assert lights.refresh() == [SHARED]
+    assert calls.n == 1, "not tried during the backoff"
+    clock.now = RETRY_DOWN_S
+    lights.refresh()
+    assert calls.n == 2, "tried again once it's over"
+
+
+def test_the_backoff_restarts_after_each_failed_retry(lights, clock):
+    calls = Calls(lights, SHARED)
+    lights.idle_all()
+    clock.now = RETRY_DOWN_S
+    lights.refresh()                                # retry fails
+    clock.now = RETRY_DOWN_S + 2
+    lights.refresh()
+    assert calls.n == 2, "waiting again"
+
+
+def test_other_controllers_keep_refreshing_during_the_backoff(lights, push, clock):
+    Calls(lights, SHARED)
+    lights.idle_all()
+    clock.now = 2
+    push("Rack3", 25)
+    assert lights.refresh() == [SHARED]
+    assert spans(lights, ALONE) == GREEN_25_RACK1
+
+
+def test_a_controller_that_comes_back_is_rewritten_at_once(lights, push, clock):
+    """It probably rebooted and lost its segments, so it gets its state as
+    soon as it answers, even when that state is what we last sent it and no
+    resend is due yet."""
+    calls = Calls(lights, SHARED)
+    calls.down = False
+    lights.idle_all()                     # t=0: accepted, both racks no data
+    calls.down = True
+    clock.now = 1
+    push("Rack1", 25)
+    lights.refresh()                      # the green bar fails: it's down
+    push("Rack1", None)                   # DevOps: no data again, so the
+                                          # state is back to what it accepted
+    calls.down = False
+    clock.now = 1 + RETRY_DOWN_S          # well before the 60 s resend
+    assert lights.refresh() == []
+    assert calls.n == 3, "rewritten although nothing changed"
+    assert spans(lights) == NO_DATA_RACK1 + NO_DATA_RACK2
+
+
+def test_coming_back_is_logged(lights, clock, caplog):
+    calls = Calls(lights, SHARED)
+    lights.idle_all()
+    calls.down = False
+    clock.now = RETRY_DOWN_S
+    caplog.set_level("INFO")
+    lights.refresh()
+    assert "controller 10.0.0.1 reachable again" in caplog.text
+
+
+def test_a_highlight_that_works_ends_the_backoff(lights, clock):
+    """The front end found it up again; no need to wait 30 s."""
+    calls = Calls(lights, SHARED)
+    lights.idle_all()
+    calls.down = False
+    lights.highlight("Rack1", [1])
+    clock.now = 2
+    assert lights.refresh() == []
+
+
+# ---------------------------------------------------------------- in parallel
+
+def blocking(lights, ip):
+    """Make controller `ip` hang (like a 3 s timeout) until released."""
+    release = threading.Event()
+    real = lights.clients[ip].set_state
+
+    def hang(state):
+        release.wait(5)
+        raise OSError("timed out")
+    lights.clients[ip].set_state = hang
+    return release, real
+
+
+def test_a_hanging_controller_does_not_delay_the_others_on_refresh(lights, push):
+    lights.idle_all()
+    release, _ = blocking(lights, SHARED)
+    lights._sent.pop(SHARED)                        # force a write to it
+    push("Rack3", 25)
+    t = threading.Thread(target=lights.refresh)
+    t.start()
+    try:
+        assert wait_for(lambda: len(writes(lights, ALONE)) == 2), \
+            "Rack3 was drawn while 10.0.0.1 still hangs"
+    finally:
+        release.set()
+        t.join()
+
+
+def test_a_hanging_controller_does_not_delay_startup(lights):
+    release, _ = blocking(lights, SHARED)
+    t = threading.Thread(target=lights.idle_all)
+    t.start()
+    try:
+        assert wait_for(lambda: len(writes(lights, ALONE)) == 1)
+    finally:
+        release.set()
+        t.join()
+
+
+def test_startup_failures_are_logged_once_and_backed_off(lights, clock, caplog):
+    calls = Calls(lights, SHARED)
+    assert lights.idle_all() == [SHARED]
+    clock.now = 2
+    lights.refresh()
+    assert caplog.text.count("unreachable") == 1
+    assert calls.n == 1
+
+
+def test_dead_controller_is_logged_once_not_every_retry(lights, caplog, clock):
+    calls = Calls(lights, SHARED)
+    for n in range(3):
+        clock.now = n * RETRY_DOWN_S              # a real retry each time
         lights.refresh()
+    assert calls.n == 3
     assert caplog.text.count("unreachable") == 1
 
 

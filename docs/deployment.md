@@ -100,8 +100,8 @@ would write to it, and the service would overwrite the CLI's change within
 ## When it stops
 
 Hardware problems don't stop the process. A controller that's down is
-logged once, skipped, and retried every 2 seconds, and a bad request gets a
-4xx response. The process only exits for:
+logged once, skipped, and retried every 30 seconds without slowing the
+others down, and a bad request gets a 4xx response. The process only exits for:
 
 - **A config error at startup.** It exits straight away with a message.
   Fix `config.ini` and start it again.
