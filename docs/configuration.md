@@ -112,8 +112,8 @@ pixels across the top stay dark):
 | 0 kW, or at/below `min-kw` | Dark |
 | No reading, a stale one, or DevOps sent `kw: null` | The whole column in `red`, with `no-data-effect` |
 
-Current values: 0–50 kW, amber from 30, red from 40, so on a 112-pixel rack
-amber starts at pixel 67 and red at pixel 90. Readings are redrawn every
+Current values: 0–50 kW, amber from 30, red from 40, so on a 109-LED side
+amber starts at LED 65 and red at LED 87 (about U26 and U34). Readings are redrawn every
 2 seconds; a controller is only written when its bar actually changes.
 
 ## `.env`

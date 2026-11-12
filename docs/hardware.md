@@ -155,6 +155,15 @@ first run:
   controller has one output of 259. Get this wrong and the second rack is
   shifted, or the end of a strip never lights; WLED doesn't report an error.
   `GET /status` flags a controller whose LED count doesn't match the config.
+  To see exactly how the outputs are set (read-only):
+
+  ```bash
+  curl -s http://<ip>/json/cfg | python3 -c "import json,sys; print([(i['start'], i['len']) for i in json.load(sys.stdin)['hw']['led']['ins']])"
+  ```
+
+  A paired controller should print `[(0, 259), (259, 259)]`. What matters
+  most is that output 2 starts at **259**; if it starts anywhere else, the
+  second rack is shifted by the difference.
 - **Boot preset (recommended):** save the orange chase as a preset and set
   it to apply at boot. After a power cut the server resends its state within
   60 seconds anyway; this covers that minute.
